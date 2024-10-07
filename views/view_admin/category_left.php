@@ -83,6 +83,11 @@
                             </a>
                         </li>
                         <li class="category-left-li">
+                            <a href="./ad"><i class="fas fa-ad"></i>
+                                Quảng cáo
+                            </a>
+                        </li>
+                        <li class="category-left-li">
                             <a href="./login"><i class="fa-solid fa-users"></i>
                                 Đăng xuất
                             </a>

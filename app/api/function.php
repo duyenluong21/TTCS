@@ -2614,6 +2614,165 @@ function getStatiscalList(){
     }
 }
 // end statiscal
+//Số chuyến bay và số vé đã mua
+function getVeDaDatList($securityParams){
+    global $conn;
+    if($securityParams['maKH'] == null){
+        return error422('Nhập mã khách hàng');
+    }
 
+    $userId = mysqli_real_escape_string($conn,$securityParams['maKH']);
+    $query = "SELECT 
+                    maKH AS userID,  -- Mã người dùng
+                    COUNT(DISTINCT maCB) AS tongSoChuyenBay,  -- Tổng số chuyến bay đã bay cho người dùng này
+                    SUM(soLuongDat) AS tongSoLuongVeDat  -- Tổng số lượng vé đã đặt cho người dùng này
+                FROM veDaDat
+                WHERE maKH = '$userId'  -- Chỉ lấy thông tin cho user ID này
+                GROUP BY maKH;";
+    $result = mysqli_query($conn,$query);
+
+    if($result){
+
+        if(mysqli_num_rows($result) == 1){
+            $res = mysqli_fetch_assoc($result);
+            $data = [
+                'status' => 200,
+                'message' => 'Sum ticket Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 404,
+                'message' => 'Không có thông báo nào được tìm thấy'
+            ];
+            header("HTTP/1.0 404 Internal server error");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+// End Số chuyến bay và số vé đã mua
+
+
+// Thêm qcao
+function storeAd($adInput){
+    global $conn;
+
+    // Lấy dữ liệu từ input
+    $description = mysqli_real_escape_string($conn, $adInput['description']);
+    $img = mysqli_real_escape_string($conn, $adInput['img']);
+    $name = mysqli_real_escape_string($conn, $adInput['name']);
+    $create_at = date('Y-m-d H:i:s'); // Thời gian hiện tại
+
+    // Kiểm tra nếu description hoặc img trống
+    if(empty(trim($description)) || empty(trim($img))){
+        return error422('Hãy nhập đầy đủ thông tin quảng cáo');
+    } else {
+        // Chèn dữ liệu vào bảng quảng cáo
+        $query = "INSERT INTO quangCao (name, img, description, create_at) VALUES ('$name','$img', '$description', '$create_at')";
+        $result = mysqli_query($conn, $query);
+
+        if($result){
+            $data = [
+                'status' => 201,
+                'message' => 'Quảng cáo đã được thêm thành công',
+            ];
+            header("HTTP/1.0 201 Created");
+            echo json_encode($data);
+        } else {
+            $data = [
+                'status' => 500,
+                'message' => 'Internal server error',
+            ];
+            header("HTTP/1.0 500 Internal server error");
+            echo json_encode($data);
+        }
+    }
+}
+
+function getAdList(){
+
+    global $conn;
+    $query = "SELECT * FROM quangcao";
+    $query_run = mysqli_query($conn,$query);
+
+    if($query_run){
+
+        if(mysqli_num_rows($query_run) > 0){
+
+            $res = mysqli_fetch_all($query_run, MYSQLI_ASSOC);
+
+            $data = [
+                'status' => 200,
+                'message' => 'Ad List Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 405,
+                'messange' =>  'No ad found',
+            ];
+            header("HTTP/1.0 405 Method not allowed");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
+function getAd($adParams){
+    global $conn;
+    if($adParams['maqc'] == null){
+        return error422('Nhập mã quảng cáo');
+    }
+
+    $adId = mysqli_real_escape_string($conn,$adParams['maqc']);
+    $query = "SELECT * FROM quangcao WHERE maqc = '$adId' LIMIT 1";
+    $result = mysqli_query($conn,$query);
+
+    if($result){
+
+        if(mysqli_num_rows($result) == 1){
+            $res = mysqli_fetch_assoc($result);
+            $data = [
+                'status' => 200,
+                'message' => 'Ad Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 404,
+                'message' => 'Không có quảng cáo nào được tìm thấy'
+            ];
+            header("HTTP/1.0 404 Internal server error");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+//End qcao
 ?>
 

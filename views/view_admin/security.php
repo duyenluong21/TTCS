@@ -10,20 +10,23 @@
     <link rel="stylesheet" href="../../public/fonts/themify-icons/themify-icons.css">
     <title>Security</title>
     <style>
-    .error {
-        color: red;
-        display: block; /* Để nó xuống dòng */
-        margin-top: 5px; /* Điều chỉnh khoảng cách giữa trường nhập liệu và thông báo lỗi */
-        font-size: 14px; /* Điều chỉnh kích thước font chữ */
-        font-weight: bold; /* Đặt độ đậm cho font chữ */
-    }
+        .error {
+            color: red;
+            display: block;
+            margin-top: 5px;
+            font-size: 14px;
+            font-weight: bold;
+        }
     </style>
-    <!--JQuery and dataTable -->
+    <!-- JQuery và DataTable -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-
-    <script>var hasError = false; // Biến kiểm tra lỗi</script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js"></script>
+    <!-- SweetAlert -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@9"></script>
 </head>
 
 <body>
@@ -38,9 +41,9 @@
             <div class="container-right-airport">
                 <div class="airport-right">
                     <h3>Thêm thông báo</h3>
-                    <form action="" id ="form" onsubmit="">
-                        <input type="text" name="form_name" value="send_value" hidden="true">
-                        <input type="text" id="maSanBay" name="maSanBay" hidden="true">
+                    <form id="form">
+                        <input type="text" name="form_name" value="send_value" hidden>
+                        <input type="text" id="maSanBay" name="maSanBay" hidden>
                         <div class="input-airport">
                             <label for="">Thông báo</label>
                             <input type="text" id="thongBao" name="thongBao" placeholder="">
@@ -53,10 +56,9 @@
                         </div>
                         <div class="btn-airport">
                             <button type="submit" id="save" class="save">Lưu</button>
-                            <button class="exit">Thoát</button>
+                            <button class="exit">Thoát</button>
                         </div>
                     </form>
-
                 </div>
 
                 <div class="airport-left">
@@ -65,59 +67,132 @@
                             <tr>
                                 <th scope="col">Thông báo</th>
                                 <th scope="col">Ngày tạo</th>
-                                <th scope="col">Hành động</th>
+                                <th scope="col">Hành động</th>
+                            </tr>
                         </thead>
                         <tbody class="tbody">
-
                         </tbody>
                     </table>
                 </div>
-                <div class="error_notice" id="message">
-                </div>
+                <div class="error_notice" id="message"></div>
             </div>
         </div>
     </div>
-    <!-- <script>
-        var dataTable = $('#myDataTable').DataTable();
-        dataTable.destroy();
-        $(document).ready(function() {
-            print_table();
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
+        import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCc80A_SdAfkoVioULDDinlSUFJtjAlDAA",
+            authDomain: "bookingflight-76b84.firebaseapp.com",
+            databaseURL: "https://bookingflight-76b84-default-rtdb.firebaseio.com",
+            projectId: "bookingflight-76b84",
+            storageBucket: "bookingflight-76b84.appspot.com",
+            messagingSenderId: "360606142971",
+            appId: "1:360606142971:web:08e335025bfc66d7b2fb5e",
+            measurementId: "G-NFJM33SXQR"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Xử lý form khi submit
+        document.getElementById('form').addEventListener('submit', function(e) {
+            e.preventDefault(); // Ngăn hành động mặc định của form
+
+            // Lấy giá trị từ các trường input
+            const thongBao = document.getElementById('thongBao').value;
+            const ngayTao = document.getElementById('ngayTao').value;
+
+            // Kiểm tra lỗi
+            let hasError = false;
+
+            if (!thongBao) {
+                document.getElementById('thongBaoError').innerText = 'Vui lòng nhập thông báo';
+                hasError = true;
+            } else {
+                document.getElementById('thongBaoError').innerText = '';
+            }
+
+            if (!ngayTao) {
+                document.getElementById('ngayTaoError').innerText = 'Vui lòng chọn ngày tạo';
+                hasError = true;
+            } else {
+                document.getElementById('ngayTaoError').innerText = '';
+            }
+
+            // Nếu không có lỗi, lưu vào Firebase
+            if (!hasError) {
+                const newNotification = {
+                    thongBao: thongBao,
+                    ngayTao: ngayTao,
+                };
+
+                // Ghi dữ liệu vào Firebase
+                push(ref(database, 'thongBao'), newNotification).then(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công!',
+                        text: 'Lưu thông báo thành công.'
+                    });
+
+                    // Xóa nội dung trong form
+                    document.getElementById('thongBao').value = '';
+                    document.getElementById('ngayTao').value = '';
+                }).catch((error) => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Lỗi!',
+                        text: 'Lưu thông báo không thành công.'
+                    });
+                });
+            }
         });
-    </script> -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@9"></script>
-    <script type="module" src="../../app/js/security_function.js"></script>
-    <!-- <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging.js"></script>
-<script>
-  const firebaseConfig = {
-        apiKey: "AIzaSyCc80A_SdAfkoVioULDDinlSUFJtjAlDAA",
-        authDomain: "bookingflight-76b84.firebaseapp.com",
-        databaseURL: "https://bookingflight-76b84-default-rtdb.firebaseio.com",
-        projectId: "bookingflight-76b84",
-        storageBucket: "bookingflight-76b84.appspot.com",
-        messagingSenderId: "360606142971",
-        appId: "1:360606142971:web:08e335025bfc66d7b2fb5e",
-        measurementId: "G-NFJM33SXQR"
-  };
 
-  // Khởi tạo Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-  
-  const messaging = firebase.messaging();
+        // Lấy bảng DataTable
+        let dataTable = $('#myDataTable').DataTable();
 
-  // Lấy token
-  messaging.getToken({ vapidKey: 'BDMipD5wwIVWKySodyBuw3f5WM2gl-zcwxumYKKvX5VkkpHu3GbGaquWi6oUJLV5ppAjIfdj5hqYMjq07uE1eUQ' }).then((currentToken) => {
-    if (currentToken) {
-      console.log('Token của thiết bị:', currentToken);
-      // Gửi token này lên server của bạn nếu cần
-    } else {
-      console.log('Không thể lấy token');
-    }
-  }).catch((err) => {
-    console.log('Lỗi khi lấy token:', err);
-  });
-</script> -->
+        // Lắng nghe thay đổi từ Firebase và cập nhật bảng
+        onValue(ref(database, 'thongBao'), function(snapshot) {
+            // Xóa dữ liệu hiện tại trong bảng trước khi thêm mới
+            dataTable.clear();
 
+            // Duyệt qua các thông báo trong Firebase
+            snapshot.forEach(function(childSnapshot) {
+                let thongBao = childSnapshot.val().thongBao;
+                let ngayTao = new Date(childSnapshot.val().ngayTao).toLocaleString(); // Định dạng ngày
+
+                // Thêm dòng mới vào bảng DataTable
+                dataTable.row.add([
+                    thongBao,
+                    ngayTao,
+                    '<button class="btn btn-danger" onclick="deleteNotification(\'' + childSnapshot.key + '\')">Xóa</button>'
+                ]).draw(false);
+            });
+        });
+
+        // Hàm xóa thông báo
+        window.deleteNotification = function(key) {
+            remove(ref(database, 'thongBao/' + key)).then(function() {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Đã xóa!',
+                    text: 'Thông báo đã được xóa thành công.'
+                });
+            }).catch(function(error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi!',
+                    text: 'Không thể xóa thông báo.'
+                });
+            });
+        }
+    </script>
 
 </body>
+
+</html>
