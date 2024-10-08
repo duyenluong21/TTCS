@@ -2773,6 +2773,76 @@ function getAd($adParams){
         echo json_encode($data);
     }
 }
+
+function deleteAd($adParams){
+    global $conn;
+
+    if(!isset($adParams['maqc'])){
+        return error422('Mã quảng cáo không tìm thấy');
+    }elseif($adParams['maqc'] == null){
+        return error422('Nhập mã quảng cáo');
+    }
+
+    $adId = mysqli_real_escape_string($conn,$adParams['maqc']);
+
+    $query = "DELETE FROM quangcao WHERE maqc = '$adId' LIMIT 1";
+    $result = mysqli_query($conn,$query);
+
+    if($result){
+        $data = [
+            'status' => 204,
+            'messange' => 'Xóa thành công',
+        ];
+        header("HTTP/1.0 204 Deleted");
+        echo json_encode($data);
+    }else{
+        $data = [
+            'status' => 404,
+            'messange' => 'Không tìm thấy quảng cáo',
+        ];
+        header("HTTP/1.0 404 Not Found");
+        echo json_encode($data);
+    }
+}
+
+function updateAd($adInput, $adParams){
+    global $conn;
+
+    if(!isset($adParams['maqc'])){
+        return error422('Mã quảng cáo không tìm thấy');
+    }elseif($adParams['maqc'] == null){
+        return error422('Nhập mã quảng cáo');
+    }
+
+    $adId = intval(mysqli_real_escape_string($conn, $adParams['maqc']));
+    $name = mysqli_real_escape_string($conn, $_POST['name']);
+    $img = mysqli_real_escape_string($conn, $_POST['img']);
+    $description = mysqli_real_escape_string($conn, $_POST['description']);
+    $place = mysqli_real_escape_string($conn, $_POST['place']);
+
+        $query = "UPDATE quangcao SET name='$name',img = '$img',description = '$description', place = '$place' WHERE maqc = '$adId' LIMIT 1";
+        $result = mysqli_query($conn,$query);
+
+        if($result){
+
+            $data = [
+                'status' => 200,
+                'messange' => 'Quảng cáo được sửa thành công',
+            ];
+            header("HTTP/1.0 200 Success");
+            echo json_encode($data);
+
+        }else{
+            $data = [
+                'status' => 500,
+                'messange' => 'Internal server error',
+            ];
+            header("HTTP/1.0 500 Method not allowed");
+            echo json_encode($data);
+        }
+
+
+}
 //End qcao
 ?>
 

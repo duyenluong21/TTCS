@@ -15,10 +15,10 @@ $conn = mysqli_connect($host, $usernam,$password,$dbname);
 if(!$conn){
     die("Connect Failed: " . mysqli_connect_error());
 }
-$vnp_TmnCode = "D7JLW8KN"; //Mã định danh merchant kết nối (Terminal Id)
-$vnp_HashSecret = "ZFIRJBMBFAINNHJWFUHYJYQXPFIIVOTY"; //Secret key
+$vnp_TmnCode = "5J3SYTRS"; //Mã định danh merchant kết nối (Terminal Id)
+$vnp_HashSecret = "NOKSBM337FXSVUGKW0N3JMG23CSYUPCL"; //Secret key
 $vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-$vnp_Returnurl = "http://192.168.1.8/TTCS/vnpay_php/vnpay_return.php";
+$vnp_Returnurl = "http://192.168.1.4/TTCS/vnpay_php/vnpay_return.php";
 $vnp_apiUrl = "http://sandbox.vnpayment.vn/merchant_webapi/merchant.html";
 $apiUrl = "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction";
 //Config input format

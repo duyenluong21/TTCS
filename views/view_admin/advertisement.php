@@ -58,7 +58,7 @@
                 </table>
             </div>
     <div id="message" class="error"></div>
-
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@9"></script>
     <script>
         document.getElementById('uploadForm').addEventListener('submit', function(event) {
             event.preventDefault(); // Ngăn chặn hành vi gửi mặc định của biểu mẫu
@@ -119,8 +119,8 @@ function print_table() {
                         data: null,
                         title: 'Hành Động',
                         render: function (data) {
-                            return `<button class='fix' onclick=''><i class='ti-pencil-alt'></i></button>
-                                    <button class='trash' onclick=''><i class='ti-trash'></i></button>`;
+                            return `<button class='fix' onclick='edit(${data.maqc});'><i class='ti-pencil-alt'></i></button>
+                                    <button class='trash' onclick='delete_ad(${data.maqc});'><i class='ti-trash'></i></button>`;
                         }
                     }
                 ],
@@ -129,6 +129,119 @@ function print_table() {
         })
         .catch(error => console.log(error));
 }
+
+function delete_ad(maqc) {
+    Swal.fire({
+        title: 'Bạn đã chắc chắn chưa?',
+        text: "Bạn sẽ không còn dữ liệu sau khi xóa",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Tôi đồng ý'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            var url = "http://localhost:3000/app/api/deleteAd.php?maqc=";
+            fetch(url + maqc, {
+                method: 'delete',
+                headers: {
+                    "Content-Type": "application/json",
+                    // 'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            }).then(response => response.text())
+                .then(data => {
+                    var ticketItem = document.querySelector('.ticket-item-' + data.maVe);
+                    if (ticketItem) {
+                        ticketItem.remove();
+                    }
+                    console.log('Success', Response)
+                    print_table(data);
+                    Swal.fire(
+                        'Đã xóa',
+                        'Bạn đã xóa thành công.',
+                        'success'
+                    )
+                })
+                .catch(error => console.error('Error:', error));
+
+        }
+    })
+}
+
+function edit(maqc) {
+    var url = "http://localhost:3000/app/api/readAd.php?maqc=" + maqc;
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            "Content-Type": "application/json",
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            console.log('success', data);
+
+            if (typeof data.data === 'object') {
+                var item = data.data;
+
+                // Hiển thị form chỉnh sửa với hình ảnh và các trường khác
+                Swal.fire({
+                    title: 'Chỉnh sửa thông tin quảng cáo',
+                    html: `
+            <form id="update_form" enctype="multipart/form-data">
+                <label>Mã quảng cáo:</label>
+                <input type="text" value="${item.maqc}" name="maqc" readonly><br><br>
+                
+                <label>Tên chương trình:</label>
+                <input type="text" value="${item.name}" name="name" required><br><br>
+
+                <label>Chi tiết:</label>
+                <textarea name="description" required>${item.description}</textarea><br><br>
+
+                <label>Địa điểm:</label>
+                <textarea name="description" required>${item.place}</textarea><br><br>
+
+                <label>Ảnh hiện tại:</label><br>
+                <img src="/uploads/quangCao/${item.img}" style="width:100px;"><br><br>
+
+                <label>Thay đổi ảnh (nếu có):</label>
+                <input type="file" name="image"><br><br>
+            </form>  
+            `,
+                    showCancelButton: true,
+                    confirmButtonText: 'Lưu thay đổi'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const formData = new FormData(document.querySelector("#update_form"));
+                        const updateUrl = "http://localhost:3000/app/api/updateAd.php";
+
+                        fetch(updateUrl, {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire('Đã sửa', 'Cập nhật thành công', 'success');
+                                print_table(); // Tải lại bảng sau khi cập nhật
+                            } else {
+                                Swal.fire('Lỗi', 'Có lỗi xảy ra khi cập nhật', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            Swal.fire('Lỗi', 'Có lỗi xảy ra khi cập nhật', 'error');
+                        });
+                    }
+                });
+            } else {
+                console.error('Invalid data format.');
+            }
+        })
+        .catch(function (error) {
+            console.error('Error:', error);
+        });
+}
+
     </script>
 </body>
 </html>
