@@ -3145,9 +3145,9 @@ function loginUserShop($userInput) {
     // Kiểm tra xem người dùng có tồn tại không
     if ($result && mysqli_num_rows($result) > 0) {
         $user = mysqli_fetch_assoc($result);
-        var_dump($matkhau);
-        var_dump($user['matkhau']);
-        var_dump(password_verify($matkhau, $user['matkhau']));
+        // var_dump($matkhau);
+        // var_dump($user['matkhau']);
+        // var_dump(password_verify($matkhau, $user['matkhau']));
 
         // So sánh mật khẩu đã hash bằng password_verify
         if (password_verify($matkhau, $user['matkhau'])) {
