@@ -1843,7 +1843,7 @@ function getTicketWebList($ticketParams){
 
     $shopId = mysqli_real_escape_string($conn, $ticketParams['maShop']);
     $query = "SELECT * FROM khachhang as a, thongtinchuyenbay as b , ve as c , vedadat as d
-    WHERE a.maKH = d.maKH and b.maCB = d.maCB and c.maVe = d.maVe and nguonDat = 'Cửa hàng'";
+    WHERE a.maKH = d.maKH and b.maCB = d.maCB and c.maVe = d.maVe and nguonDat = 'Cửa hàng' and d.maShop = '$shopId'";
     $result = mysqli_query($conn, $query);
 
     if ($result){

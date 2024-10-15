@@ -114,7 +114,7 @@
     // Hàm lấy dữ liệu vé từ API
     function fetchTickets(maShop) {
         $.ajax({
-            url: 'http://localhost:3000/app/api/readTicketWeb.php?maShop=${maShop}',
+            url: `http://localhost:3000/app/api/readTicketWeb.php?maShop=${maShop}`,
             method: 'GET',
             dataType: 'json',
             success: function(result) {
