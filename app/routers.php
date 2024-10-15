@@ -19,6 +19,7 @@
     Router::any('/security','securityController@index');
     Router::any('/statistical','statisticalController@index');
     Router::any('/ad','adController@index');
+    Router::any('/shop','shopController@index');
    //  Router::get('/login',function(){
    //     $builder = QueryBuilder::table('my duyen')->select('cot1','cot2')->distinct()->join('bang1','abc.id','=','bang1.acbID')
    //     ->leftJoin('bang2','q','=','bang2.acid')->get();

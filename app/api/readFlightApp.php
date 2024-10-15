@@ -11,7 +11,7 @@ $requestMethod = $_SERVER["REQUEST_METHOD"];
 
 if($requestMethod == "GET"){
     if(isset($_GET['maCB'])){
-        $flight = getFlightListApp($_GET);
+        $flight = getFlightApp($_GET);
         echo $flight;
     }else{
         $flightList = getFlightListApp();

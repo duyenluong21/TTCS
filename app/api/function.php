@@ -566,6 +566,7 @@ function getPassengerAccount($passengerParams){
         echo json_encode($data);
     }
 }
+
 function getPassenger($passengerParams){
     global $conn;
     if($passengerParams['maKH'] == null){
@@ -1089,6 +1090,54 @@ ORDER BY tcb.gioBay ASC;";
     }
 }
 
+function getFlightApp($flightParams){
+    global $conn;
+    if($flightParams['maCB'] == null){
+        return error422('Nhập mã chuyến bay');
+    }
+
+    $flightId = mysqli_real_escape_string($conn,$flightParams['maCB']);
+    $query = "SELECT 
+                    tcb.*,
+                    GROUP_CONCAT(DISTINCT v.maVe ORDER BY v.maVe SEPARATOR ', ') AS maVe,
+                    GROUP_CONCAT(DISTINCT slv.soLuongCon ORDER BY slv.soLuongCon SEPARATOR ', ') AS soLuongCon,
+                    GROUP_CONCAT(DISTINCT v.hangVe ORDER BY v.hangVe SEPARATOR ', ') AS hangVe
+                FROM thongtinchuyenbay tcb
+                LEFT JOIN soluongve slv ON tcb.maCB = slv.maCB
+                LEFT JOIN ve v ON slv.maVe = v.maVe
+                WHERE tcb.maCB = '$flightId'
+                GROUP BY tcb.maCB
+                ORDER BY tcb.gioBay ASC;";
+    $result = mysqli_query($conn,$query);
+
+    if($result){
+
+        if(mysqli_num_rows($result) == 1){
+            $res = mysqli_fetch_assoc($result);
+            $data = [
+                'status' => 200,
+                'message' => 'Flight Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 404,
+                'message' => 'Không có chuyến bay nào được tìm thấy'
+            ];
+            header("HTTP/1.0 404 Internal server error");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
 
 function getFlight($flightParams){
     global $conn;
@@ -1741,6 +1790,9 @@ function storeDetailTicket($detailInput){
     $maKH = mysqli_real_escape_string($conn, $detailInput['maKH']);
     $soLuongDat = mysqli_real_escape_string($conn, $detailInput['soLuongDat']);
     $tongThanhToan = mysqli_real_escape_string($conn, $detailInput['tongThanhToan']);
+    $nguonDat = mysqli_real_escape_string($conn, $detailInput['nguonDat']);
+       // Đặt maShop thành NULL nếu nguồn đặt là "app"
+    $maShop = ($nguonDat == "app") ? null : mysqli_real_escape_string($conn, $detailInput['maShop']);
 
     if(empty(trim($maVe))){
         return error422('Hãy nhập mã Vé');
@@ -1755,8 +1807,8 @@ function storeDetailTicket($detailInput){
         return error422('Hãy nhập số lượng đặt');
     }
     else{
-        $query = "INSERT INTO vedadat (order_id,maVe,maCB,maKH,soLuongDat,tongThanhToan)
-         VALUES ('$order_id','$maVe','$maCB','$maKH','$soLuongDat','$tongThanhToan')";
+        $query = "INSERT INTO vedadat (order_id,maVe,maCB,maKH,soLuongDat,tongThanhToan,nguonDat,maShop)
+         VALUES ('$order_id','$maVe','$maCB','$maKH','$soLuongDat','$tongThanhToan','$nguonDat', " . ($maShop ? "'$maShop'" : 'NULL') . ")";
         $result = mysqli_query($conn,$query);
 
         if($result){
@@ -1772,6 +1824,7 @@ function storeDetailTicket($detailInput){
             $data = [
                 'status' => 500,
                 'messange' => 'Internal server error',
+                'error' => mysqli_error($conn),
             ];
             header("HTTP/1.0 500 Method not allowed");
             echo json_encode($data);
@@ -1779,6 +1832,52 @@ function storeDetailTicket($detailInput){
     }
 
 }
+
+function getTicketWebList($ticketParams){
+
+    global $conn;
+
+    if ($ticketParams['maShop'] == null){
+        return error422('Nhập mã cửa hàng');
+    }
+
+    $shopId = mysqli_real_escape_string($conn, $ticketParams['maShop']);
+    $query = "SELECT * FROM khachhang as a, thongtinchuyenbay as b , ve as c , vedadat as d
+    WHERE a.maKH = d.maKH and b.maCB = d.maCB and c.maVe = d.maVe and nguonDat = 'Cửa hàng'";
+    $result = mysqli_query($conn, $query);
+
+    if ($result){
+        $ticketArray = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $ticketArray[] = $row;
+        }
+
+        if (!empty($ticketArray)){
+            $data = [
+                'status' => 200,
+                'message' => 'Ticket Shop Fetched Successfully',
+                'data' => $ticketArray
+            ];
+            header("HTTP/1.0 200 OK");
+            echo json_encode($data);
+        }else{
+            $data = [
+                'status' => 404,
+                'message' => 'Không có vé đã đặt nào được tìm thấy'
+            ];
+            header("HTTP/1.0 404 Not Found");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'message' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal Server Error");
+        echo json_encode($data);
+    }
+}
+
 function storeMess($messInput){
     global $conn;
 
@@ -2577,7 +2676,7 @@ function deleteSecurity($securityParams){
 function getStatiscalList(){
     global $conn;
     $query = "SELECT MONTH(create_at) AS month, 
-                    COUNT(*) AS total_tickets, 
+                    SUM(soLuongDat) AS total_tickets, 
                     SUM(tongThanhToan) AS total_revenue
                 FROM veDaDat
                 GROUP BY MONTH(create_at);";
@@ -2613,6 +2712,187 @@ function getStatiscalList(){
         echo json_encode($data);
     }
 }
+
+function getStatiscalOfShopList($shopParams){
+    global $conn;
+    if(!isset($shopParams['maShop'])){
+        return error422('Mã cửa hàng không tìm thấy');
+    }elseif($shopParams['maShop'] == null){
+        return error422('Nhập mã thông báo');
+    }
+
+    $shopId = mysqli_real_escape_string($conn,$shopParams['maShop']);
+    $query = "SELECT MONTH(create_at) AS month, 
+                    SUM(soLuongDat) AS total_tickets, 
+                    SUM(tongThanhToan) AS total_revenue
+                FROM veDaDat
+                WHERE maShop = '$shopId'
+                GROUP BY MONTH(create_at);";
+    $query_run = mysqli_query($conn,$query);
+
+    if($query_run){
+
+        if(mysqli_num_rows($query_run) > 0){
+
+            $res = mysqli_fetch_all($query_run, MYSQLI_ASSOC);
+
+            $data = [
+                'status' => 200,
+                'message' => 'Security List Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 405,
+                'messange' =>  'No security found',
+            ];
+            header("HTTP/1.0 405 Method not allowed");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
+function getHomeShop($shopParams){
+    global $conn;
+    if(!isset($shopParams['maShop'])){
+        return error422('Mã cửa hàng không tìm thấy');
+    }elseif($shopParams['maShop'] == null){
+        return error422('Nhập mã thông báo');
+    }
+
+    $shopId = mysqli_real_escape_string($conn,$shopParams['maShop']);
+    $query = "SELECT SUM(soLuongDat) AS total_tickets, 
+                    SUM(tongThanhToan) AS total_revenue
+                FROM veDaDat
+                WHERE maShop = '$shopId'";
+    $query_run = mysqli_query($conn,$query);
+
+    if($query_run){
+
+        if(mysqli_num_rows($query_run) > 0){
+
+            $res = mysqli_fetch_all($query_run, MYSQLI_ASSOC);
+
+            $data = [
+                'status' => 200,
+                'message' => 'Security List Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 405,
+                'messange' =>  'No security found',
+            ];
+            header("HTTP/1.0 405 Method not allowed");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
+function getSumFlightNow(){
+    global $conn;
+    $query = "SELECT COUNT(maCB) AS total_flights
+                FROM thongtinchuyenbay
+                WHERE ngayDi >= NOW()";
+    $query_run = mysqli_query($conn,$query);
+
+    if($query_run){
+
+        if(mysqli_num_rows($query_run) > 0){
+
+            $res = mysqli_fetch_all($query_run, MYSQLI_ASSOC);
+
+            $data = [
+                'status' => 200,
+                'message' => 'Security List Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 405,
+                'messange' =>  'No security found',
+            ];
+            header("HTTP/1.0 405 Method not allowed");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
+function getStatisticAdmin(){
+    global $conn;
+    $query = "SELECT 
+                MONTH(create_at) AS month,
+                v.maShop,                         
+                SUM(v.soLuongDat) AS tongVe,    
+                SUM(v.tongThanhToan) AS tongTien,
+                u.taikhoan 
+            FROM 
+                veDaDat v
+            JOIN 
+                user_shop u ON v.maShop = u.maNVShop
+            GROUP BY
+                MONTH(create_at), v.maShop, u.taikhoan;
+                ";
+    $query_run = mysqli_query($conn,$query);
+
+    if($query_run){
+
+        if(mysqli_num_rows($query_run) > 0){
+
+            $res = mysqli_fetch_all($query_run, MYSQLI_ASSOC);
+
+            $data = [
+                'status' => 200,
+                'message' => 'Security List Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 405,
+                'messange' =>  'No security found',
+            ];
+            header("HTTP/1.0 405 Method not allowed");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
 // end statiscal
 //Số chuyến bay và số vé đã mua
 function getVeDaDatList($securityParams){
@@ -2844,5 +3124,425 @@ function updateAd($adInput, $adParams){
 
 }
 //End qcao
+
+//Login chủ cửa hàng
+function loginUserShop($userInput) {
+    global $conn;
+
+    // Lấy thông tin username và password từ đầu vào
+    $taikhoan = mysqli_real_escape_string($conn, trim($userInput['taikhoan']));
+    $matkhau = mysqli_real_escape_string($conn, trim($userInput['matkhau']));
+
+    // Kiểm tra xem username và password có trống không
+    if (empty($taikhoan) || empty($matkhau)) {
+        return error422('Vui lòng nhập cả username và mật khẩu');
+    }
+
+    // Truy vấn cơ sở dữ liệu để lấy thông tin người dùng theo username
+    $query = "SELECT * FROM user_shop WHERE taikhoan = '$taikhoan'";
+    $result = mysqli_query($conn, $query);
+
+    // Kiểm tra xem người dùng có tồn tại không
+    if ($result && mysqli_num_rows($result) > 0) {
+        $user = mysqli_fetch_assoc($result);
+        var_dump($matkhau);
+        var_dump($user['matkhau']);
+        var_dump(password_verify($matkhau, $user['matkhau']));
+
+        // So sánh mật khẩu đã hash bằng password_verify
+        if (password_verify($matkhau, $user['matkhau'])) {
+            // Mật khẩu đúng, đăng nhập thành công
+            $data = [
+                'status' => 200,
+                'message' => 'Đăng nhập thành công',
+                'user' => [
+                    'maNVshop' => $user['maNVshop'],
+                    'taikhoan' => $user['taikhoan'],
+                ]
+            ];
+            header("HTTP/1.0 200 OK");
+            echo json_encode($data);
+        } else {
+            // Mật khẩu sai
+            return error422('Mật khẩu không đúng');
+        }
+    } else {
+        // Không tìm thấy username
+        return error422('Username không tồn tại');
+    }
+
+}
+
+
+function storeUserShop($userInput) {
+    global $conn;
+
+    $taikhoan = mysqli_real_escape_string($conn, $userInput['taikhoan']);
+    $matkhau = mysqli_real_escape_string($conn, $userInput['matkhau']);
+    $kinhdo = mysqli_real_escape_string($conn, $userInput['kinhdo']);
+    $vido = mysqli_real_escape_string($conn, $userInput['vido']);
+
+    // Kiểm tra nếu cả username và dienTen bị bỏ trống
+    if (empty(trim($taikhoan)) || empty(trim($matkhau))) {
+        return error422('Hãy nhập thông tin username và mật khẩu');
+    } else {
+        // Kiểm tra sự tồn tại của username (nếu có)
+        if (!empty($taikhoan)) {
+            $checkUsernameQuery = "SELECT * FROM user_shop WHERE taikhoan = '$taikhoan' LIMIT 1";
+            $checkUsernameResult = mysqli_query($conn, $checkUsernameQuery);
+            if (mysqli_num_rows($checkUsernameResult) > 0) {
+                // Username đã tồn tại
+                $data = [
+                    'status' => 422,
+                    'message' => 'Username đã tồn tại. Vui lòng chọn tên khác.',
+                ];
+                header("HTTP/1.0 422 Unprocessable Entity");
+                echo json_encode($data);
+                return;
+            }
+        }
+
+        // Chèn dữ liệu người dùng mới vào bảng
+        $query = "INSERT INTO user_shop (taikhoan, matkhau, kinhdo, vido) 
+                  VALUES ('$taikhoan', '$matkhau', '$kinhdo', '$vido')";
+        $result = mysqli_query($conn, $query);
+
+        if ($result) {
+            // Lấy user_id của bản ghi vừa được thêm vào
+            $maNVshop = mysqli_insert_id($conn);
+            $data = [
+                'status' => 201,
+                'message' => 'Tài khoản đã được thêm thành công',
+                'maNVshop' => $maNVshop
+            ];
+            header("HTTP/1.0 201 Created");
+            echo json_encode($data);
+        } else {
+            $data = [
+                'status' => 500,
+                'message' => 'Internal server error',
+            ];
+            header("HTTP/1.0 500 Internal Server Error");
+            echo json_encode($data);
+        }
+    }
+}
+
+function searchCustomer($searchQuery) {
+    global $conn;
+
+    // Lấy thông tin tìm kiếm và sử dụng `mysqli_real_escape_string` để tránh SQL Injection
+    $searchQuery = mysqli_real_escape_string($conn, $searchQuery);
+
+    // Kiểm tra nếu chuỗi tìm kiếm trống
+    if (empty(trim($searchQuery))) {
+        return error422('Hãy nhập thông tin cần tìm kiếm');
+    }
+
+    // Truy vấn tìm kiếm khách hàng theo tên hoặc email
+    $query = "SELECT * FROM khachhang WHERE fullname LIKE '%$searchQuery%' OR soDT LIKE '%$searchQuery%'";
+    $query_run = mysqli_query($conn,$query);
+
+    if($query_run){
+
+        if(mysqli_num_rows($query_run) > 0){
+
+            $res = mysqli_fetch_all($query_run, MYSQLI_ASSOC);
+
+            $data = [
+                'status' => 200,
+                'message' => 'Customer List Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 405,
+                'messange' =>  'No customer found',
+            ];
+            header("HTTP/1.0 405 Method not allowed");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
+
+function addCustomer($customerInput) {
+    global $conn;
+
+    // Lấy thông tin khách hàng và xử lý tránh SQL Injection
+    $fullname = mysqli_real_escape_string($conn, $customerInput['fullname']);
+    $email = mysqli_real_escape_string($conn, $customerInput['email']);
+    $soDT = mysqli_real_escape_string($conn, $customerInput['soDT']);
+
+    // Kiểm tra xem các trường thông tin không được bỏ trống
+    if (empty(trim($fullname)) || empty(trim($soDT))) {
+        return error422('Hãy nhập thông tin tên và email khách hàng');
+    } else {
+        // Kiểm tra xem khách hàng đã tồn tại hay chưa
+        $checkEmailQuery = "SELECT * FROM khachhang WHERE soDT = '$soDT' LIMIT 1";
+        $checkEmailResult = mysqli_query($conn, $checkEmailQuery);
+
+        if (mysqli_num_rows($checkEmailResult) > 0) {
+            // Email đã tồn tại
+            $data = [
+                'status' => 422,
+                'message' => 'Email đã tồn tại. Vui lòng sử dụng email khác.',
+            ];
+            header("HTTP/1.0 422 Unprocessable Entity");
+            echo json_encode($data);
+            return;
+        }
+
+        // Chèn khách hàng mới vào cơ sở dữ liệu
+        $query = "INSERT INTO khachhang (fullname, email, soDT) VALUES ('$fullname', '$email', '$soDT')";
+        $result = mysqli_query($conn, $query);
+
+        if ($result) {
+            // Lấy `customer_id` của bản ghi vừa được thêm vào
+            $customer_id = mysqli_insert_id($conn);
+            $data = [
+                'status' => 201,
+                'message' => 'Khách hàng đã được thêm thành công',
+                'customer_id' => $customer_id
+            ];
+            header("HTTP/1.0 201 Created");
+            echo json_encode($data);
+        } else {
+            // Nếu có lỗi trong quá trình thêm
+            $data = [
+                'status' => 500,
+                'message' => 'Internal server error',
+            ];
+            header("HTTP/1.0 500 Internal Server Error");
+            echo json_encode($data);
+        }
+    }
+}
+
+// Shop
+function storeShop($shopInput){
+    global $conn;
+
+    $taikhoan = mysqli_real_escape_string($conn, $shopInput['taikhoan']);
+    $matkhau = mysqli_real_escape_string($conn, $shopInput['matkhau']);
+      // Kiểm tra trùng lặp
+      $duplicateQuery = "SELECT COUNT(*) AS count FROM user_shop 
+      WHERE taikhoan = '$taikhoan'";
+    $duplicateResult = mysqli_query($conn, $duplicateQuery);
+    if ($duplicateResult) {
+        $duplicateRow = mysqli_fetch_assoc($duplicateResult);
+        $duplicateCount = $duplicateRow['count'];
+
+        if ($duplicateCount > 0) {
+            $data = [
+                'status' => 400,
+                'message' => 'Đã có cửa hàng này. Vui lòng kiểm tra lại.',
+            ];
+            header("HTTP/1.0 400 Bad Request");
+            echo json_encode($data);
+            return;
+        }
+    } else {
+        $data = [
+            'status' => 500,
+            'message' => 'Internal server error during duplicate check.',
+        ];
+        header("HTTP/1.0 500 Internal Server Error");
+        echo json_encode($data);
+        return;
+    }
+    if(empty(trim($taikhoan))){
+        return error422('Hãy nhập tên máy bay');
+    }
+    elseif(empty(trim($matkhau))){
+        return error422('Hãy nhập hãng may bay');
+    }
+    else{
+        // Hash mật khẩu trước khi lưu
+        $hashedPassword = password_hash($matkhau, PASSWORD_DEFAULT);
+        $query = "INSERT INTO user_shop (taikhoan,matkhau) VALUES ('$taikhoan','$hashedPassword')";
+        $result = mysqli_query($conn,$query);
+
+        if($result){
+
+            $data = [
+                'status' => 201,
+                'messange' => 'Cửa hàng đã được thêm thành công',
+            ];
+            header("HTTP/1.0 201 Created");
+            echo json_encode($data);
+
+        }else{
+            $data = [
+                'status' => 500,
+                'messange' => 'Internal server error',
+            ];
+            header("HTTP/1.0 500 Method not allowed");
+            echo json_encode($data);
+        }
+    }
+
+}
+function getShopList(){
+
+    global $conn;
+    $query = "SELECT * FROM user_shop";
+    $query_run = mysqli_query($conn,$query);
+
+    if($query_run){
+
+        if(mysqli_num_rows($query_run) > 0){
+
+            $res = mysqli_fetch_all($query_run, MYSQLI_ASSOC);
+
+            $data = [
+                'status' => 200,
+                'message' => 'Customer List Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 405,
+                'messange' =>  'No airline found',
+            ];
+            header("HTTP/1.0 405 Method not allowed");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
+function getShop($shopParams){
+    global $conn;
+    if($shopParams['maNVshop'] == null){
+        return error422('Nhập mã cửa hàng');
+    }
+
+    $shopId = mysqli_real_escape_string($conn,$shopParams['maNVshop']);
+    $query = "SELECT * FROM user_shop WHERE maNVshop = '$shopId' LIMIT 1";
+    $result = mysqli_query($conn,$query);
+
+    if($result){
+
+        if(mysqli_num_rows($result) == 1){
+            $res = mysqli_fetch_assoc($result);
+            $data = [
+                'status' => 200,
+                'message' => 'Shop Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 404,
+                'message' => 'Không có cửa hàng nào được tìm thấy'
+            ];
+            header("HTTP/1.0 404 Internal server error");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
+function updateShop($shopInput, $shopParams){
+    global $conn;
+
+    if(!isset($shopParams['maNVshop'])){
+        return error422('Mã cửa hàng không tìm thấy');
+    }elseif($shopParams['maNVshop'] == null){
+        return error422('Nhập mã cửa hàng');
+    }
+
+    $shopId = intval(mysqli_real_escape_string($conn, $shopParams['maNVshop']));
+    $taikhoan = mysqli_real_escape_string($conn, $_POST['taikhoan']);
+    $matkhau = mysqli_real_escape_string($conn, $_POST['matkhau']);
+
+    if(empty(trim($taikhoan))){
+        return error422('Hãy nhập tài khoản cửa hàng');
+    }
+    elseif(empty(trim($matkhau))){
+        return error422('Hãy nhập mật khẩu cửa hàng');
+    }
+    else{
+        $hashedPassword = password_hash($matkhau, PASSWORD_DEFAULT);
+        $query = "UPDATE user_shop SET taikhoan='$taikhoan', matkhau = '$hashedPassword' WHERE maNVshop = '$shopId' LIMIT 1";
+        $result = mysqli_query($conn,$query);
+
+        if($result){
+
+            $data = [
+                'status' => 200,
+                'messange' => 'Cửa hàng đã được sửa thành công',
+            ];
+            header("HTTP/1.0 200 Success");
+            echo json_encode($data);
+
+        }else{
+            $data = [
+                'status' => 500,
+                'messange' => 'Internal server error',
+            ];
+            header("HTTP/1.0 500 Method not allowed");
+            echo json_encode($data);
+        }
+    }
+
+}
+
+function deleteShop($shopParams){
+    global $conn;
+
+    if(!isset($shopParams['maNVshop'])){
+        return error422('Mã cửa hàng không tìm thấy');
+    }elseif($shopParams['maNVshop'] == null){
+        return error422('Nhập mã cửa hàng');
+    }
+
+    $shopId = mysqli_real_escape_string($conn,$shopParams['maNVshop']);
+
+    $query = "DELETE FROM user_shop WHERE maNVshop = '$shopId' LIMIT 1";
+    $result = mysqli_query($conn,$query);
+
+    if($result){
+        $data = [
+            'status' => 204,
+            'messange' => 'Xóa thành công',
+        ];
+        header("HTTP/1.0 204 Deleted");
+        echo json_encode($data);
+    }else{
+        $data = [
+            'status' => 404,
+            'messange' => 'Không tìm thấy cửa hàng',
+        ];
+        header("HTTP/1.0 404 Not Found");
+        echo json_encode($data);
+    }
+}   
+//End shop
 ?>
 
