@@ -78,7 +78,7 @@
                             </a>
                         </li>
                         <li class="category-left-li">
-                            <a href="./user"><i class="	fas fa-landmark"></i>
+                            <a href="./shop"><i class="	fas fa-landmark"></i>
                                 Thông Tin Cửa Hàng
                             </a>
                         </li>

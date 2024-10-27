@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="../../public/fonts/bootstrap/css/bootstrap-grid.css">
     <link rel="stylesheet" href="../../public/fonts/bootstrap/css/bootstrap.css">
     <link rel="stylesheet" href="../../public/fonts/themify-icons/themify-icons.css">
-    <title>User</title>
+    <title>Shop</title>
     <style>
     .error {
         color: red;
@@ -64,6 +64,8 @@
                     <thead class="title">
                         <tr>
                             <th scope="col">Mã cửa hàng</th>
+                            <th scope="col">Tên cửa hàng</th>
+                            <th scope="col">Địa chỉ</th>
                             <th scope="col">Tài khoản</th>
                             <th scope="col">Hành động</th>
                         </tr>

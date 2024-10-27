@@ -731,6 +731,45 @@ function updatePassenger($passengerInput, $passengerParams){
         }
 }
 
+function updatePWPassenger($passengerInput, $passengerParams){
+    global $conn;
+
+    if(!isset($passengerParams['maKH'])){
+        return error422('Mã khách hàng không tìm thấy');
+    } elseif($passengerParams['maKH'] == null){
+        return error422('Nhập mã khách hàng');
+    }
+
+    if(!isset($passengerInput['password']) || $passengerInput['password'] == null){
+        return error422('Nhập mật khẩu mới');
+    }
+
+    $maKH = mysqli_real_escape_string($conn, $passengerParams['maKH']);
+    $password = mysqli_real_escape_string($conn, $passengerInput['password']);
+    $salt = isset($passengerInput['salt']) ? mysqli_real_escape_string($conn, $passengerInput['salt']) : '';
+
+    $query = "UPDATE khachhang SET password = '$password', salt = '$salt' WHERE maKH = '$maKH' LIMIT 1";
+    $result = mysqli_query($conn, $query);
+
+    if ($result) {
+        $data = [
+            'status' => 200,
+            'message' => 'Khách hàng đã được sửa thành công',
+        ];
+        header("HTTP/1.0 200 Success");
+        echo json_encode($data);
+    } else {
+        $error = mysqli_error($conn); // Thêm chi tiết lỗi SQL
+        $data = [
+            'status' => 500,
+            'message' => 'Internal server error: ' . $error,
+        ];
+        header("HTTP/1.0 500 Internal Server Error");
+        echo json_encode($data);
+    }
+}
+
+
 //end passenger
 
 //--------------------------------------Account passenger---------------------------------------------------
@@ -3480,16 +3519,12 @@ function updateShop($shopInput, $shopParams){
     $shopId = intval(mysqli_real_escape_string($conn, $shopParams['maNVshop']));
     $taikhoan = mysqli_real_escape_string($conn, $_POST['taikhoan']);
     $matkhau = mysqli_real_escape_string($conn, $_POST['matkhau']);
+    $tenShop = mysqli_real_escape_string($conn, $_POST['tenShop']);
+    $diaChi = mysqli_real_escape_string($conn, $_POST['diaChi']);
 
-    if(empty(trim($taikhoan))){
-        return error422('Hãy nhập tài khoản cửa hàng');
-    }
-    elseif(empty(trim($matkhau))){
-        return error422('Hãy nhập mật khẩu cửa hàng');
-    }
-    else{
         $hashedPassword = password_hash($matkhau, PASSWORD_DEFAULT);
-        $query = "UPDATE user_shop SET taikhoan='$taikhoan', matkhau = '$hashedPassword' WHERE maNVshop = '$shopId' LIMIT 1";
+        $query = "UPDATE user_shop SET taikhoan='$taikhoan', matkhau = '$hashedPassword', tenShop = '$tenShop', diaChi = '$diaChi'
+         WHERE maNVshop = '$shopId' LIMIT 1";
         $result = mysqli_query($conn,$query);
 
         if($result){
@@ -3509,7 +3544,6 @@ function updateShop($shopInput, $shopParams){
             header("HTTP/1.0 500 Method not allowed");
             echo json_encode($data);
         }
-    }
 
 }
 
@@ -3542,7 +3576,78 @@ function deleteShop($shopParams){
         header("HTTP/1.0 404 Not Found");
         echo json_encode($data);
     }
-}   
+} 
+
+function searchShop($query) {
+    $db = new Database();
+    $conn = $db->connect();
+
+    // Chuẩn bị lại query cho đúng
+    $query = "%" . trim($query) . "%"; // Thêm wildcard để tìm kiếm chính xác hơn
+
+    // Sử dụng SQL để tìm kiếm shop
+    $sql = "SELECT * FROM user_shop WHERE tenShop LIKE :query";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':query', $query);
+    $stmt->execute();
+
+    $shops = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $shops[] = $row;
+    }
+
+    return json_encode($shops); // Trả về dữ liệu dạng JSON
+}
 //End shop
+
+// Thanh toán app KH
+function getPay($payParams){
+    global $conn;
+    if($payParams['maKH'] == null){
+        return error422('Nhập mã khách hàng');
+    }
+
+    $payId = mysqli_real_escape_string($conn,$payParams['maKH']);
+    $query = "SELECT maKH,
+                    DATE(create_at) AS ngayThanhToan,
+                    TIME(create_at) AS gioThanhToan,
+                    tongThanhToan
+                FROM veDaDat
+                WHERE maKH = '$payId'
+                ORDER BY create_at DESC";
+
+    $query_run = mysqli_query($conn,$query);
+
+    if($query_run){
+
+        if(mysqli_num_rows($query_run) > 0){
+
+            $res = mysqli_fetch_all($query_run, MYSQLI_ASSOC);
+
+            $data = [
+                'status' => 200,
+                'message' => 'Customer List Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 405,
+                'messange' =>  'No airline found',
+            ];
+            header("HTTP/1.0 405 Method not allowed");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+// End thanh toán
 ?>
 

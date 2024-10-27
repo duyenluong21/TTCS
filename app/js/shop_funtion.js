@@ -102,6 +102,8 @@ function print_table() {
                 data: data.data, // Giả sử API trả về một đối tượng với trường "data" chứa mảng dữ liệu
                 columns: [
                     { data: 'maNVshop', title: 'Mã cửa hàng' },
+                    { data: 'tenShop', title: 'Tên cửa hàng' },
+                    { data: 'diaChi', title: 'Địa chỉ' },
                     { data: 'taikhoan', title: 'Tài khoản' },
                     // { data: 'passw', title: 'Mật khẩu' },
                     {
@@ -182,9 +184,12 @@ function edit(maNV) {
                 <form id="update_form">
                     <input type="text" value="update_user" name="form_name" hidden="true">
                     <input type="text" value="${item.maNVshop}"   name="maNV" hidden="true">
-    
+                    <label style = "float : left">Tên cửa hàng </label>
+                    <input type="text" value="${item.tenShop}"   name="tenShop" class="form-control" placeholder="Tên cửa hàng">
+                    <label style = "float : left">Địa chỉ </label>
+                    <input type="text" value="${item.diaChi}"   name="diaChi" class="form-control" placeholder="Địa chỉ">
                     <label style = "float : left">Tài khoản </label>
-                    <input type="matkhau" value="${item.taikhoan}"   name="taikhoan" class="form-control" placeholder="Mật khẩu">
+                    <input type="text" value="${item.taikhoan}"   name="taikhoan" class="form-control" placeholder="Tài khoản">
                     <label style = "float : left">Mật khẩu </label>
                     <input type="password" value="${item.matkhau}"   name="matkhau" class="form-control" placeholder="Mật khẩu">
                 </form>  
