@@ -1,8 +1,6 @@
 <?php
 require_once("./config.php");
 
-// Thực hiện truy vấn để lấy giá trị tongThanhToan từ CSDL
-// (Đây chỉ là ví dụ, bạn cần thay thế bằng mã truy vấn thực tế của bạn)
 $connection = mysqli_connect($db_host, $db_user, $db_password, $db_name);
 
 if (!$connection) {

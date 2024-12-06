@@ -74,7 +74,6 @@
                         <h5 class="card-title">Số tiền thanh toán</h5>
                         <p class="total-amount" id="total-amount">0 VNĐ</p>
                         <button class="btn btn-success btn-block btn-custom" onclick="payByCash()">Thanh Toán Tiền Mặt</button>
-                        <button class="btn btn-info btn-block btn-custom" onclick="payByQRCode()">Thanh Toán Quét Mã</button>
                     </div>
                 </div>
             </div>
@@ -164,10 +163,6 @@
 
     function payByCash() {
         processPayment('cash');
-    }
-
-    function payByQRCode() {
-        processPayment('qr');
     }
 
     async function processPayment(paymentMethod) {
