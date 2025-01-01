@@ -1,6 +1,3 @@
-<?php
-require_once "./app/models/db.php";
-?>
 <!DOCTYPE html>
 <html lang="en">
 

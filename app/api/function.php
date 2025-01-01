@@ -778,12 +778,9 @@ function storeUser($userInput){
 
     $hoNV = mysqli_real_escape_string($conn, $userInput['hoNV']);
     $tenNV = mysqli_real_escape_string($conn, $userInput['tenNV']);
-    // $ngaySinhNV = mysqli_real_escape_string($conn, $userInput['ngaySinhNV']);
-    // $sdtNV = mysqli_real_escape_string($conn, $userInput['sdtNV']);
     $chucVu = mysqli_real_escape_string($conn, $userInput['chucVu']);
     $trinhDoHocVan = mysqli_real_escape_string($conn, $userInput['trinhDoHocVan']);
     $kinhNghiem = mysqli_real_escape_string($conn, $userInput['kinhNghiem']);
-    // $trangThaiHoatDong = mysqli_real_escape_string($conn, $userInput['trangThaiHoatDong']);
     $username = mysqli_real_escape_string($conn, $userInput['username']);
     $passw = mysqli_real_escape_string($conn, $userInput['passw']);
     $salt = bin2hex(random_bytes(22));
@@ -820,7 +817,6 @@ function storeUser($userInput){
         echo json_encode($data);
         return;
     }
-    // echo "Mật khẩu đã băm: " . $hashedPassword;
     if(empty(trim($hoNV))){
         return error422('Hãy nhập họ nhân viên');
     }
@@ -870,6 +866,43 @@ function getUserList(){
 
     global $conn;
     $query = "SELECT * FROM nhanvien";
+    $query_run = mysqli_query($conn,$query);
+
+    if($query_run){
+
+        if(mysqli_num_rows($query_run) > 0){
+
+            $res = mysqli_fetch_all($query_run, MYSQLI_ASSOC);
+
+            $data = [
+                'status' => 200,
+                'message' => 'Customer List Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 405,
+                'messange' =>  'No airline found',
+            ];
+            header("HTTP/1.0 405 Method not allowed");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
+function getUserChatList(){
+
+    global $conn;
+    $query = "SELECT * FROM nhanvien where chucVu = 'Nhân viên tư vấn'";
     $query_run = mysqli_query($conn,$query);
 
     if($query_run){
@@ -969,12 +1002,6 @@ function updateUser($userInput, $userParams){
     elseif(empty(trim($tenNV))){
         return error422('Hãy nhập tên nhân viên');
     }
-    // elseif(empty(trim($username))){
-    //     return error422('Hãy nhập tài khoản nhân viên');
-    // }
-    // elseif(empty(trim($passw))){
-    //     return error422('Hãy nhập mật khẩu cho nhân viên');
-    // }
     elseif(empty(trim($chucVu))){
         return error422('Hãy nhập chức vụ nhân viên');
     }
@@ -984,9 +1011,6 @@ function updateUser($userInput, $userParams){
     elseif(empty(trim($kinhNghiem))){
         return error422('Hãy nhập kinh nghiệm nhân viên');
     }
-    // elseif(empty(trim($trangThaiHoatDong))){
-    //     return error422('Hãy nhập trạng thái hoạt động nhân viên');
-    // }
     else{
         $query = "UPDATE nhanvien SET hoNV='$hoNV', tenNV = '$tenNV',username = '$username',
         passw='$passw',chucVu ='$chucVu',trinhDoHocVan = '$trinhDoHocVan',kinhNghiem = '$kinhNghiem',trangThaiHoatDong = '$trangThaiHoatDong'
@@ -1013,6 +1037,184 @@ function updateUser($userInput, $userParams){
     }
 }
 
+function getPublicKey($passengerParams){
+    global $conn;
+    if($passengerParams['maKH'] == null){
+        return error422('Nhập mã khách hàng');
+    }
+
+    $passengerId = mysqli_real_escape_string($conn,$passengerParams['maKH']);
+    $query = "SELECT public_key FROM khachhang WHERE maKH = '$passengerId' LIMIT 1";
+    $result = mysqli_query($conn,$query);
+
+    if($result){
+
+        if(mysqli_num_rows($result) == 1){
+            $res = mysqli_fetch_assoc($result);
+            $data = [
+                'status' => 200,
+                'message' => 'Public Key Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 404,
+                'message' => 'Không có khách hàng nào được tìm thấy'
+            ];
+            header("HTTP/1.0 404 Internal server error");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
+function getPublicKeyStaff($staffParams){
+    global $conn;
+    if($staffParams['maNV'] == null){
+        return error422('Nhập mã nhân viên');
+    }
+
+    $staffId = mysqli_real_escape_string($conn,$staffParams['maNV']);
+    $query = "SELECT public_key FROM nhanvien WHERE maNV = '$staffId' LIMIT 1";
+    $result = mysqli_query($conn,$query);
+
+    if($result){
+
+        if(mysqli_num_rows($result) == 1){
+            $res = mysqli_fetch_assoc($result);
+            $data = [
+                'status' => 200,
+                'message' => 'Public Key Fetched Successfully',
+                'data' => $res
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        }else{
+            $data = [
+                'status' => 404,
+                'message' => 'Không có nhân viên nào được tìm thấy'
+            ];
+            header("HTTP/1.0 404 Internal server error");
+            echo json_encode($data);
+        }
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Internal server error");
+        echo json_encode($data);
+    }
+}
+
+function updatePublicKey($passengerInput, $passengerParams){
+    global $conn;
+    if(!isset($passengerParams['maKH'])){
+        return error422('Mã khách hàng không tìm thấy');
+    }elseif($passengerParams['maKH'] == null){
+        return error422('Nhập mã khách hàng');
+    }
+    $maKH = mysqli_real_escape_string($conn, $passengerParams['maKH']);
+    $public_key = mysqli_real_escape_string($conn, $passengerInput['public_key']);
+
+    $query = "UPDATE khachhang SET public_key = '$public_key' WHERE maKH = '$maKH' LIMIT 1";
+    $result = mysqli_query($conn,$query);
+
+    if($result){
+
+        $data = [
+            'status' => 200,
+            'messange' => 'Public key được update thành công',
+        ];
+        header("HTTP/1.0 200 Success");
+        echo json_encode($data);
+
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Method not allowed");
+        echo json_encode($data);
+    }
+}
+
+function updatePublicKeyStaff($staffInput, $staffParams){
+    global $conn;
+    if(!isset($staffParams['maNV'])){
+        return error422('Mã nhân viên không tìm thấy');
+    }elseif($staffParams['maNV'] == null){
+        return error422('Nhập mã nhân viên');
+    }
+    $maNV = mysqli_real_escape_string($conn, $staffParams['maNV']);
+    $public_key = mysqli_real_escape_string($conn, $staffInput['public_key']);
+
+    $query = "UPDATE nhanvien SET public_key = '$public_key' WHERE maNV = '$maNV' LIMIT 1";
+    $result = mysqli_query($conn,$query);
+
+    if($result){
+
+        $data = [
+            'status' => 200,
+            'messange' => 'Public key được update thành công',
+        ];
+        header("HTTP/1.0 200 Success");
+        echo json_encode($data);
+
+    }else{
+        $data = [
+            'status' => 500,
+            'messange' => 'Internal server error',
+        ];
+        header("HTTP/1.0 500 Method not allowed");
+        echo json_encode($data);
+    }
+}
+
+function checkIfUserHasPublicKey($maKH) {
+    global $conn;
+    $maKH = mysqli_real_escape_string($conn, $maKH);
+
+    // Truy vấn kiểm tra public_key
+    $query = "SELECT public_key FROM khachhang WHERE maKH = '$maKH' LIMIT 1";
+    $result = mysqli_query($conn, $query);
+
+    if ($result) {
+        $row = mysqli_fetch_assoc($result);
+        if ($row['public_key']) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    return false;
+}
+
+function checkIfUserHasPublicKeyStaff($maNV) {
+    global $conn;
+    $maNV = mysqli_real_escape_string($conn, $maNV);
+
+    $query = "SELECT public_key FROM nhanvien WHERE maKH = '$maNV' LIMIT 1";
+    $result = mysqli_query($conn, $query);
+
+    if ($result) {
+        $row = mysqli_fetch_assoc($result);
+        if ($row['public_key']) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    return false;
+}
 
 function deleteUser($userParams){
     global $conn;
