@@ -1,6 +1,8 @@
 <?php
 require_once 'database.php';
-
+require_once 'C:\xampp\htdocs\TTCS\app\api\vendor\autoload.php';
+use \Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 function error422($message){
 
@@ -11,6 +13,44 @@ function error422($message){
     header("HTTP/1.0 422 Unprocessable Entity");
     echo json_encode($data);
     exit();
+}
+function generateJWT($user) {
+    $payload = [
+        "iat" => time(),
+        "exp" => time() + 3600, // Token hết hạn sau 1 giờ
+        "data" => [
+            "maKH" => $user['maKH'],
+            "fullname" => $user['fullname'],
+            "email" => $user['email']
+        ]
+    ];
+
+    $secretKey = "mySuperSecretKey"; 
+    return JWT::encode($payload, $secretKey, 'HS256'); 
+}
+
+function verifyJWT() {
+    $secretKey = "mySuperSecretKey";  
+    $headers = apache_request_headers();  
+    $authHeader = isset($headers['Authorization']) ? $headers['Authorization'] : null;  
+
+    if (isset($authHeader) && strpos($authHeader, 'Bearer ') === 0) {
+        $token = substr($authHeader, 7);  
+
+        try {
+            $decoded = JWT::decode($token, new Key($secretKey, 'HS256'));
+            return $decoded;
+        } catch (Exception $e) {
+        
+            http_response_code("401");  
+            echo json_encode(["message" => "Unauthorized access. Invalid token.", "error" => $e->getMessage()]);
+            exit();
+        }
+    } else {
+        http_response_code("401");  
+        echo json_encode(["message" => "Authorization header missing."]);
+        exit();
+    }
 }
 
 //-----------------------------------------------------------Airline-------------------------------------------------------
@@ -457,7 +497,7 @@ function updateAirport($airportInput, $airportParams){
 
 //--------------------------------------------------------------------Passenger----------------------------------
 function getPassengerList(){
-
+    $decoded = verifyJWT();
     global $conn;
     $query = "SELECT * FROM khachhang";
     $query_run = mysqli_query($conn,$query);
@@ -566,7 +606,18 @@ function getPassengerAccount($passengerParams){
         echo json_encode($data);
     }
 }
+function postPassengerAccount($email) {
+    global $conn;
 
+    $query = "SELECT * FROM khachhang WHERE email = '$email' LIMIT 1";
+    $result = mysqli_query($conn, $query);
+    
+    if ($result && mysqli_num_rows($result) == 1) {
+        return mysqli_fetch_assoc($result); // Trả về thông tin người dùng nếu tìm thấy
+    }
+    
+    return null; // Trả về null nếu không tìm thấy người dùng
+}
 function getPassenger($passengerParams){
     global $conn;
     if($passengerParams['maKH'] == null){
@@ -657,6 +708,39 @@ function storePassenger($passengerInput){
         }
     }
 
+}
+
+function updateUserFingerprint($passengerInput, $passengerParams){
+    global $conn;
+
+    if(!isset($passengerParams['maKH'])){
+        return error422('Mã khách hàng không tìm thấy');
+    }elseif($passengerParams['maKH'] == null){
+        return error422('Nhập mã khách hàng');
+    }
+
+    $maKH = mysqli_real_escape_string($conn,$passengerParams['maKH']);
+    $isFingerprintRegistered = isset($passengerInput['isFingerprintRegistered']) ? filter_var($passengerInput['isFingerprintRegistered'], FILTER_VALIDATE_BOOLEAN) : false;
+        $query = "UPDATE khachhang SET isFingerprintRegistered='$isFingerprintRegistered' WHERE maKH='$maKH' LIMIT 1";
+        $result = mysqli_query($conn,$query);
+
+        if($result){
+
+            $data = [
+                'status' => 200,
+                'messange' => 'Khách hàng đã được sửa thành công',
+            ];
+            header("HTTP/1.0 200 Success");
+            echo json_encode($data);
+
+        }else{
+            $data = [
+                'status' => 500,
+                'messange' => 'Internal server error',
+            ];
+            header("HTTP/1.0 500 Method not allowed");
+            echo json_encode($data);
+        }
 }
 
 function deletePassenger($passengerParams){
