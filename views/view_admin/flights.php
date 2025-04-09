@@ -84,10 +84,10 @@
                     <thead class="title">
                         <tr>
                             <th scope="col" style="width: 80px;">Mã chuyến bay</th>
-                            <th scope="col">Ngày đến</th>
                             <th scope="col">Ngày đi</th>
-                            <th scope="col">Địa điểm đến</th>
+                            <th scope="col" style="width: 80px;">Ngày đến</th>
                             <th scope="col">Địa điểm đi</th>
+                            <th scope="col" style="width: 100px;">Địa điểm đến</th>
                             <th scope="col">Số lượng ghế</th>
                             <th scope="col" style="width: 200px">Ghi chú</th>
                             <th scope="col">Giờ bay</th>

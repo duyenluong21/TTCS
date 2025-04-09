@@ -131,10 +131,10 @@ function print_table() {
                 data: data.data, // Giả sử API trả về một đối tượng với trường "data" chứa mảng dữ liệu
                 columns: [
                     { data: 'maCB', title: 'Mã chuyến bay' },
-                    { data: 'ngayDen', title: 'Ngày đến' },
                     { data: 'ngayDi', title: 'Ngày đi' },
-                    { data: 'diaDiemDen', title: 'Địa Điểm đến' },
+                    { data: 'ngayDen', title: 'Ngày đến' },
                     { data: 'diaDiemDi', title: 'Địa điểm đi' },
+                    { data: 'diaDiemDen', title: 'Địa Điểm đến' },
                     { data: 'giaVe', title: 'Giá vé' },
                     { data: 'ghiChu', title: 'Ghi chú' },
                     { data: 'gioBay', title: 'Giờ bay' },
