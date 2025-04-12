@@ -1914,25 +1914,11 @@ function updateTicket($ticketInput, $ticketParams)
         return error422('Nhập mã vé');
     }
     $maVe = mysqli_real_escape_string($conn, $ticketParams['maVe']);
-    // $maCB = mysqli_real_escape_string($conn, $_POST['maCB']);
-    // $loaiVe = mysqli_real_escape_string($conn, $_POST['loaiVe']);
     $soLuong = mysqli_real_escape_string($conn, $_POST['soLuong']);
-    // $soLuongCon = mysqli_real_escape_string($conn, $_POST['soLuongCon']);
     $hangVe = mysqli_real_escape_string($conn, $_POST['hangVe']);
-    // $giaHangVe = mysqli_real_escape_string($conn, $_POST['giaHangVe']);
-
-    // if(empty(trim($maCB))){
-    //     return error422('Hãy nhập mã chuyến bay');
-    // }
-    // elseif(empty(trim($loaiVe))){
-    //     return error422('Hãy nhập loại vé');}
-
     if (empty(trim($soLuong))) {
         return error422('Hãy nhập số lượng');
     }
-    // elseif(empty(trim($soLuongCon))){
-    //     return error422('Hãy nhập số lượng còn');
-    // }
     elseif (empty(trim($hangVe))) {
         return error422('Hãy nhập hạng vé');
     } else {
@@ -1963,8 +1949,6 @@ function updateTicket($ticketInput, $ticketParams)
 function updateNumberOfTickets($ticketInput, $ticketParams)
 {
     global $conn;
-
-    // Kiểm tra sự tồn tại và giá trị của maCB và maVe
     if (!isset($ticketParams['maCB'])) {
         return error422('Mã chuyến bay không tìm thấy');
     } elseif ($ticketParams['maCB'] == null) {
@@ -1977,12 +1961,9 @@ function updateNumberOfTickets($ticketInput, $ticketParams)
         return error422('Nhập mã vé');
     }
 
-    // Escape dữ liệu đầu vào để tránh SQL Injection
     $maCB = mysqli_real_escape_string($conn, $ticketParams['maCB']);
     $maVe = mysqli_real_escape_string($conn, $ticketParams['maVe']);
     $soLuongCon = mysqli_real_escape_string($conn, $ticketInput['soLuongCon']);
-
-    // Truy vấn cập nhật soLuongCon trong bảng soluongve dựa vào maCB và maVe
     $query = "
         UPDATE soluongve 
         SET soLuongCon = '$soLuongCon' 
@@ -1992,7 +1973,6 @@ function updateNumberOfTickets($ticketInput, $ticketParams)
 
     $result = mysqli_query($conn, $query);
 
-    // Xử lý kết quả truy vấn
     if ($result) {
         $data = [
             'status' => 200,
@@ -2167,7 +2147,7 @@ function storeDetailTicket($detailInput)
                 'messange' => 'Đặt vé thành công',
             ];
             header("HTTP/1.0 201 Created");
-            echo json_encode($data);
+            return json_encode($data);
         } else {
             $data = [
                 'status' => 500,
@@ -2175,7 +2155,7 @@ function storeDetailTicket($detailInput)
                 'error' => mysqli_error($conn),
             ];
             header("HTTP/1.0 500 Method not allowed");
-            echo json_encode($data);
+            return json_encode($data);
         }
     }
 }
@@ -3972,3 +3952,47 @@ function getPay($payParams)
     }
 }
 // End thanh toán
+
+function getMaVeFromHangVe($params)
+{
+    global $conn;
+
+    if (!isset($params['hangVe']) || empty($params['hangVe'])) {
+        return json_encode([
+            'status' => 422,
+            'message' => 'Vui lòng nhập hạng vé'
+        ]);
+    }
+
+    $hangVe = mysqli_real_escape_string($conn, $params['hangVe']);
+    $sql = "SELECT maVe FROM ve WHERE hangVe = '$hangVe' LIMIT 1";
+
+    $result = mysqli_query($conn, $sql);
+
+    if ($result) {
+        if (mysqli_num_rows($result) > 0) {
+            $row = mysqli_fetch_assoc($result);
+            $data = [
+                'status' => 200,
+                'message' => 'Lấy mã vé thành công',
+                'data' => $row
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        } else {
+            $data = [
+                'status' => 404,
+                'message' => 'Không tìm thấy mã vé cho hạng đã chọn'
+            ];
+            header("HTTP/1.0 404 Not Found");
+            return json_encode($data);
+        }
+    } else {
+        $data = [
+            'status' => 500,
+            'message' => 'Lỗi truy vấn CSDL'
+        ];
+        header("HTTP/1.0 500 Internal Server Error");
+        return json_encode($data);
+    }
+}
