@@ -37,6 +37,13 @@ if (preg_match('/Đặt vé (\w+)/', $request['queryResult']['queryText'], $matc
     $responseText .= "Điểm đi: " . $chuyenBay['diaDiemDi'] . "\n";
     $responseText .= "Điểm đến: " . $chuyenBay['diaDiemDen'] . "\n";
     $responseText .= "Thời gian khởi hành: " . $chuyenBay['gioBay'] . "\n\n";
+    $giaVe = $chuyenBay['giaVe'];
+    $heSoGia = [
+        'Phổ thông' => 1,
+        'Thương gia' => 1.5,
+        'Cao cấp' => 2
+    ];
+
 
     if (!empty($chuyenBay['maVe']) && !empty($chuyenBay['soLuongCon']) && !empty($chuyenBay['hangVe'])) {
         $maVeArray = explode(', ', $chuyenBay['maVe']);
@@ -55,8 +62,12 @@ if (preg_match('/Đặt vé (\w+)/', $request['queryResult']['queryText'], $matc
 
             $responseText .= "Các hạng vé và số lượng ghế còn lại:\n";
             foreach ($danhSachVe as $ve) {
+                $hangVe = $ve['hangVe'];
+                $heSo = isset($heSoGia[$hangVe]) ? $heSoGia[$hangVe] : 0;
+                $giaVeTheoHang = $giaVe * $heSo;
                 $responseText .= "- Hạng vé: " . $ve['hangVe'] . "\n";
-                $responseText .= "  Ghế còn: " . $ve['soLuongCon'] . "\n\n";
+                $responseText .= "  Ghế còn: " . $ve['soLuongCon'] . "\n";
+                $responseText .= "  Giá vé: " . number_format($giaVeTheoHang, 0, ',', '.') . " VND\n\n";
             }
         } else {
             $responseText .= "Lỗi: Dữ liệu vé không khớp, vui lòng thử lại sau.\n\n";
@@ -90,12 +101,28 @@ if (preg_match('/(?:Tôi muốn đặt|Đặt|Muốn đặt)?\s*(?:hạng\s*)?(.
         echo json_encode(["fulfillmentText" => "Bạn vui lòng nhập mã chuyến bay trước khi đặt vé nhé."]);
         exit;
     }
+
+    $flightInfo = getFlightApp(['maCB' => $maCB]);
+    $flightData = json_decode($flightInfo, true);
+
+    if (empty($flightData) || !isset($flightData['status']) || $flightData['status'] != 200) {
+        error_log("[ERROR] Lỗi API chuyến bay: " . $flightInfo);
+        echo json_encode(["fulfillmentText" => "Hiện không thể lấy thông tin giá vé. Vui lòng thử lại sau."]);
+        exit;
+    }
+
+    $chuyenBay = $flightData['data'];
+    $diaDiemDi = $chuyenBay['diaDiemDi'];
+    $diaDiemDen = $chuyenBay['diaDiemDen'];
+    $gioBay = $chuyenBay['gioBay'];
+    $ngayDi = $chuyenBay['ngayDi'];
+    $ngayDiFormatted = date("d/m/Y", strtotime($ngayDi));
     if ($soLuong <= 0) {
         echo json_encode(["fulfillmentText" => "Số lượng vé không hợp lệ. Vui lòng nhập lại."]);
         exit;
     }
 
-    $responseText = "Bạn muốn đặt $soLuong vé cho hạng $hangVe cho chuyến bay $maCB. Xác nhận đặt vé? (Xác nhận/Không xác nhận)";
+    $responseText = "Bạn muốn đặt $soLuong vé hạng $hangVe cho chuyến bay từ $diaDiemDi đến $diaDiemDen vào lúc $gioBay ngày $ngayDiFormatted.\nXác nhận đặt vé? (Xác nhận/Không xác nhận)";
 
     echo json_encode([
         "fulfillmentText" => $responseText,
@@ -130,8 +157,11 @@ if (strtolower(trim($request['queryResult']['queryText'])) === "xác nhận") {
 
     if ($passengerData['status'] == 200) {
         $kh = $passengerData['data'];
+        $ngaySinhFormatted = date('d/m/Y', strtotime($kh['ngaySinh']));
         $responseText = "Vui lòng xác nhận lại thông tin cá nhân:\n"
                       . "Tên: " . $kh['fullname'] . "\n"
+                      . "Giới tính: " . $kh['gioiTinh'] . "\n"
+                      . "Ngày sinh: " . $ngaySinhFormatted . "\n"
                       . "SĐT: " . $kh['sDT'] . "\n"
                       . "Email: " . $kh['email'] . "\n"
                       . "Địa chỉ: " . $kh['diaChi'] . "\n\n"
@@ -235,13 +265,30 @@ if (strtolower(trim($request['queryResult']['queryText'])) === "xác nhận đ�
         echo json_encode(["fulfillmentText" => "Không tìm thấy mã vé cho hạng '$hangVe'."]);
     }
 
+    switch ($maVe) {
+        case 1:
+            $giaVeTheoHang = $giaVe;
+            break;
+        case 2:
+            $giaVeTheoHang = $giaVe * 1.5;
+            break;
+        case 3:
+            $giaVeTheoHang = $giaVe * 2;
+            break;
+        default:
+            $giaVeTheoHang = 0;
+            break;
+    }
+
+    $tongThanhToan = $giaVeTheoHang * $soLuong;
+
     $detailInput = [
         'order_id' => date("Y-m-d H:i:s"),
         'maVe' => $maVe,
         'maCB' => $maCB,
         'maKH' => $maKH,
         'soLuongDat' => $soLuong,
-        'tongThanhToan' => $giaVe * $soLuong,
+        'tongThanhToan' => $tongThanhToan,
         'nguonDat' => 'app',
         'maShop' => null
     ];
@@ -358,7 +405,7 @@ if ($flightDataArray['status'] == 200 && !empty($flightDataArray['flights'])) {
         $flightList .= "Mã CB: {$flight['maCB']}\n";
         $flightList .= "Giờ bay: {$flight['gioBay']}\n";
         $flightList .= "Giá: " . number_format($flight['giaVe'], 0, ',', '.') . " VND\n";
-        $flightList .= "Để đặt vé, nhập: 'Đặt vé {$flight['maCB']}'\n";
+        $flightList .= "Để đặt vé, nhập: 'Đặt vé {$flight['maCB']}'\n\n";
     }
 
     echo json_encode(["fulfillmentText" => $flightList]);
