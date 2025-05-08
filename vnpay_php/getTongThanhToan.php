@@ -14,8 +14,7 @@ if ($result) {
     $row = mysqli_fetch_assoc($result);
     $tongThanhToan = $row['tongThanhToan'];
 } else {
-    // Xử lý khi truy vấn thất bại
-    $tongThanhToan = 0; // hoặc bất kỳ giá trị mặc định nào bạn chọn
+    $tongThanhToan = 0;
 }
 
 mysqli_close($connection);
