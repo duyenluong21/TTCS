@@ -78,15 +78,24 @@ if (preg_match('/Đặt vé (\w+)/', $request['queryResult']['queryText'], $matc
 
     $responseText .= "Bạn có muốn hãy nhập hạng vé và số lượng vé mong muốn?\n";
 
-    echo json_encode(["fulfillmentText" => $responseText]);
+    echo json_encode([
+    "fulfillmentText" => $responseText,
+    "outputContexts" => [
+        [
+            "name" => $request['session'] . "/contexts/dat_ve_context",
+            "lifespanCount" => 20,
+            "parameters" => [
+                "maCB" => $maCB,
+            ]
+        ]
+    ]
+    ]);
     exit;
 }
 
 if (preg_match('/(?:Tôi muốn đặt|Đặt|Muốn đặt)?\s*(?:hạng\s*)?(.+?)\s*(\d+)\s*v(?:é|e)(?:.*?chuyến bay\s*([A-Za-z0-9]+))?/iu', $request['queryResult']['queryText'], $matches)) {
     $hangVe = trim($matches[1]);
     $soLuong = (int) trim($matches[2]);
-
-    $maCB = $request['queryResult']['parameters']['maCB'] ?? null;
 
     if (empty($maCB)) {
         foreach ($request['queryResult']['outputContexts'] as $context) {
@@ -122,18 +131,18 @@ if (preg_match('/(?:Tôi muốn đặt|Đặt|Muốn đặt)?\s*(?:hạng\s*)?(.
         exit;
     }
 
-    $responseText = "Bạn muốn đặt $soLuong vé hạng $hangVe cho chuyến bay từ $diaDiemDi đến $diaDiemDen vào lúc $gioBay ngày $ngayDiFormatted.\nXác nhận đặt vé? (Xác nhận/Không xác nhận)";
+    $responseText = "Bạn muốn đặt $soLuong vé hạng $hangVe cho chuyến bay từ $diaDiemDi đến $diaDiemDen vào lúc $gioBay ngày $ngayDiFormatted.\nXác nhận đặt vé? (Xác nhận thông tin/Không xác nhận)";
 
     echo json_encode([
         "fulfillmentText" => $responseText,
         "outputContexts" => [
             [
                 "name" => $request['session'] . "/contexts/dat_ve_context",
-                "lifespanCount" => 30,
+                "lifespanCount" => 40,
                 "parameters" => [
+                    "maCB" => $maCB,
                     "hangVe" => $hangVe,
                     "soLuong" => $soLuong,
-                    "maCB" => $maCB,
                     "maKH" => $maKH ?? null
                 ]
             ]
@@ -144,7 +153,7 @@ if (preg_match('/(?:Tôi muốn đặt|Đặt|Muốn đặt)?\s*(?:hạng\s*)?(.
 
 
 
-if (strtolower(trim($request['queryResult']['queryText'])) === "xác nhận") {
+if (strtolower(trim($request['queryResult']['queryText'])) === "xác nhận thông tin") {
     $maKH = $request['originalDetectIntentRequest']['payload']['maKH'];
     if ($maKH === null) {
         echo json_encode(["fulfillmentText" => "Không tìm thấy mã khách hàng. Vui lòng đăng nhập hoặc cung cấp thông tin."]);
@@ -165,23 +174,11 @@ if (strtolower(trim($request['queryResult']['queryText'])) === "xác nhận") {
                       . "SĐT: " . $kh['sDT'] . "\n"
                       . "Email: " . $kh['email'] . "\n"
                       . "Địa chỉ: " . $kh['diaChi'] . "\n\n"
-                      . "Nếu thông tin chính xác, vui lòng nhắn 'Xác nhận đặt vé'.";
+                      . "Nếu thông tin chính xác, vui lòng nhắn 'Xác nhận'.";
 
     
             echo json_encode([
-            "fulfillmentText" => $responseText,
-            "outputContexts" => [
-                [
-                    "name" => $request['session'] . "/contexts/dat_ve_context",
-                    "lifespanCount" => 15,
-                    "parameters" => [
-                        "hangVe" => $hangVe,
-                        "soLuong" => $soLuong,
-                        "maCB" => $maCB,
-                        "maKH" => $maKH ?? null
-                    ]
-                ]
-            ]
+            "fulfillmentText" => $responseText
         ]);
         exit;
     } else {
@@ -190,7 +187,7 @@ if (strtolower(trim($request['queryResult']['queryText'])) === "xác nhận") {
     }
 
 } 
-if (strtolower(trim($request['queryResult']['queryText'])) === "xác nhận đặt vé") {
+if (strtolower(trim($request['queryResult']['queryText'])) === "xác nhận") {
     $maCB = $request['queryResult']['parameters']['maCB'] ?? null;
     $maKH = $request['queryResult']['parameters']['maKH'] ?? null;
     $hangVe = $request['queryResult']['parameters']['hangVe'] ?? null;
@@ -304,8 +301,39 @@ if (strtolower(trim($request['queryResult']['queryText'])) === "xác nhận đ�
     
     if ($result && isset($result['status'])) {
         if ($result['status'] == 201) {
-            unset($_SESSION['maCB'], $_SESSION['hangVe'], $_SESSION['soLuong']);
-            echo json_encode(["fulfillmentText" => "Vé của bạn đã được đặt thành công!"]);
+        $postData = http_build_query([
+            'tongThanhToan' => $tongThanhToan,
+            'soLuongDat' => $soLuong,
+            'maKH' => $maKH,
+            'order_id' => $detailInput["order_id"]
+        ]);
+
+        $ch = curl_init('http://192.168.1.5/TTCS/app/zalopay_php/zalo_create_payment.php');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Accept: application/x-www-form-urlencoded',
+            'Content-Type: application/x-www-form-urlencoded'
+        ]);
+
+        $zaloResponse = curl_exec($ch);
+        error_log($zaloResponse);
+        curl_close($ch);
+
+        $zaloData = json_decode($zaloResponse, true);
+        $order_url = isset($zaloData['order_url']) ? $zaloData['order_url'] : null;
+        error_log($order_url);
+        unset($_SESSION['maCB'], $_SESSION['hangVe'], $_SESSION['soLuong']);
+
+        if ($order_url) {
+            echo json_encode([
+                "fulfillmentText" => "Vé của bạn đã được đặt thành công!\n Vui lòng thanh toán tại link sau:\n<$order_url>"
+            ]);
+        } else {
+            echo json_encode([
+                "fulfillmentText" => "Vé đã đặt thành công nhưng chưa tạo được link thanh toán. Vui lòng thử lại sau."
+            ]);
+        }
         } else {
             error_log("[ERROR] Lỗi DB: " . json_encode($result));
             echo json_encode(["fulfillmentText" => "Đã có lỗi xảy ra: {$result['messange']}"]);

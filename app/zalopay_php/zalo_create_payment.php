@@ -29,7 +29,11 @@ if ($tongThanhToan <= 0 || $soLuongDat <= 0 || empty($maKH) || empty($order_id))
 $giaVe = $tongThanhToan / $soLuongDat;
 $soLuong = $soLuongDat;
 
-$embeddata = '{}';
+$embeddata = json_encode([
+    "redirecturl" => "appflightbooking://home",
+    "callback_url" => "https://ce52-2001-ee0-8204-32db-587d-722e-4f35-f4fd.ngrok-free.app/app/zalopay_php/zalopay_callback.php"
+]);
+
 $items = json_encode([[
     "itemid" => "ve",
     "itemname" => "Vé máy bay",
@@ -52,12 +56,13 @@ $order = [
     "amount" => $tongThanhToan,
     "description" => "Thanh toán vé máy bay #$transID",
     "bank_code" => "",
-    "redirect_url" => "appflightbooking://home"
+    "callback_url" => "https://ce52-2001-ee0-8204-32db-587d-722e-4f35-f4fd.ngrok-free.app/app/zalopay_php/zalopay_callback.php"
 ];
 
 // 5. Tính MAC
 $data = $order["app_id"] . "|" . $order["app_trans_id"] . "|" . $order["app_user"] . "|" . $order["amount"]
     . "|" . $order["app_time"]. "|" . $order["embed_data"]  . "|" . $order["item"];
+ file_put_contents("data_create.txt", $data);
 $order["mac"] = hash_hmac("sha256", $data, $config["key1"]);
 
 // Log giá trị của MAC
@@ -83,7 +88,13 @@ $result = json_decode($resp, true);
 
 // Log kết quả trả về từ ZaloPay
 error_log("Response from ZaloPay: " . json_encode($result));
+$stmt = $conn->prepare("UPDATE vedadat SET app_trans_id = ? WHERE order_id = ?");
+$stmt->bind_param("ss", $app_trans_id, $order_id);
 
-header('Content-Type: application/json');
-echo json_encode($result);
+if ($stmt->execute()) {
+    header('Content-Type: application/json');
+    echo json_encode($result);
+} else {
+    echo json_encode(["error" => "Cập nhật app_trans_id thất bại"]);
+}
 ?>

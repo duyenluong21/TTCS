@@ -1,27 +1,43 @@
 <?php
-$body = file_get_contents("php://input");
-$data = json_decode($body, true);
 
-$key2 = "kLtgPl8HHhfvMuDHPwKfgfsY4Ydm9eIz";
+$result = [];
+$host = "localhost";
+$usernam = "root";
+$password = "";
+$dbname = "quanlymaybay";
 
-$mac = hash_hmac("sha256", $data["data"], $key2);
-
-if ($mac != $data["mac"]) {
-    echo json_encode(["return_code" => -1, "return_message" => "MAC không hợp lệ"]);
-    exit;
-}
-
-$payment_data = json_decode($data["data"], true);
-$order_id = $payment_data["app_trans_id"];
-
-$conn = new mysqli("localhost", "root", "", "quanlymaybay");
+$conn = mysqli_connect($host, $usernam, $password, $dbname);
 if ($conn->connect_error) {
-    die("Lỗi kết nối DB");
+    die(json_encode(["error" => "Kết nối thất bại: " . $conn->connect_error]));
 }
 
-$stmt = $conn->prepare("UPDATE vedadat SET trangThai = 1 WHERE order_id = ?");
-$stmt->bind_param("s", $order_id);
-$stmt->execute();
+try {
+  $key2 = "kLtgPl8HHhfvMuDHPwKfgfsY4Ydm9eIz";
+  $postdata = file_get_contents('php://input');
+  file_put_contents("post_data.txt", $postdata);
+  $postdatajson = json_decode($postdata, true);
+  file_put_contents("post_datajson.txt", $postdatajson["data"]);
+  $mac = hash_hmac("sha256", $postdatajson["data"], $key2);
 
-echo json_encode(["return_code" => 1, "return_message" => "Xác nhận thành công"]);
-?>
+
+  $requestmac = $postdatajson["mac"];
+  if (strcmp($mac, $requestmac) != 0) {
+    file_put_contents("log.txt", 'vao day');
+    $result["return_code"] = -1;
+    $result["return_message"] = "mac not equal";
+  } else {
+    $app_trans_id = $postdatajson["app_trans_id"];
+    file_put_contents("app_trans_id.txt", $app_trans_id);
+    $stmt = $conn->prepare("UPDATE vedadat SET trangThai = 1 WHERE app_trans_id = ?");
+    $stmt->bind_param("s", $app_trans_id);
+    $stmt->execute();
+
+    $result["return_code"] = 1;
+    $result["return_message"] = "success";
+  }
+} catch (Exception $e) {
+  $result["return_code"] = 0;
+  $result["return_message"] = $e->getMessage();
+}
+
+echo json_encode($result);
