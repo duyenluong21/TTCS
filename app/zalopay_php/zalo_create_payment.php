@@ -31,7 +31,7 @@ $soLuong = $soLuongDat;
 
 $embeddata = json_encode([
     "redirecturl" => "appflightbooking://home",
-    "callback_url" => "https://ce52-2001-ee0-8204-32db-587d-722e-4f35-f4fd.ngrok-free.app/app/zalopay_php/zalopay_callback.php"
+    "callback_url" => "https://c293-2001-ee0-8204-32db-f464-89a7-3572-1a1b.ngrok-free.app/app/zalopay_php/zalopay_callback.php"
 ]);
 
 $items = json_encode([[
@@ -56,7 +56,7 @@ $order = [
     "amount" => $tongThanhToan,
     "description" => "Thanh toán vé máy bay #$transID",
     "bank_code" => "",
-    "callback_url" => "https://ce52-2001-ee0-8204-32db-587d-722e-4f35-f4fd.ngrok-free.app/app/zalopay_php/zalopay_callback.php"
+    "callback_url" => "https://c293-2001-ee0-8204-32db-f464-89a7-3572-1a1b.ngrok-free.app/app/zalopay_php/zalopay_callback.php"
 ];
 
 // 5. Tính MAC

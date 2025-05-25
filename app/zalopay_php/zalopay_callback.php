@@ -22,12 +22,11 @@ try {
 
   $requestmac = $postdatajson["mac"];
   if (strcmp($mac, $requestmac) != 0) {
-    file_put_contents("log.txt", 'vao day');
     $result["return_code"] = -1;
     $result["return_message"] = "mac not equal";
   } else {
-    $app_trans_id = $postdatajson["app_trans_id"];
-    file_put_contents("app_trans_id.txt", $app_trans_id);
+    $datajson = json_decode($postdatajson["data"], true);
+    $app_trans_id = $datajson["app_trans_id"];
     $stmt = $conn->prepare("UPDATE vedadat SET trangThai = 1 WHERE app_trans_id = ?");
     $stmt->bind_param("s", $app_trans_id);
     $stmt->execute();

@@ -496,7 +496,6 @@ function updateAirport($airportInput, $airportParams)
 //--------------------------------------------------------------------Passenger----------------------------------
 function getPassengerList()
 {
-    $decoded = verifyJWT();
     global $conn;
     $query = "SELECT * FROM khachhang";
     $query_run = mysqli_query($conn, $query);
@@ -1989,6 +1988,49 @@ function updateNumberOfTickets($ticketInput, $ticketParams)
         echo json_encode($data);
     }
 }
+
+function getSoLuongCon($params)
+{
+    global $conn;
+
+    if (!isset($params['maCB']) || !isset($params['maVe'])) {
+        return error422('Thiếu maCB hoặc maVe');
+    }
+
+    $maCB = mysqli_real_escape_string($conn, $params['maCB']);
+    $maVe = mysqli_real_escape_string($conn, $params['maVe']);
+
+    $query = "SELECT soLuongCon FROM soluongve WHERE maCB = '$maCB' AND maVe = '$maVe' LIMIT 1";
+    $result = mysqli_query($conn, $query);
+
+    if ($result) {
+        if (mysqli_num_rows($result) == 1) {
+            $row = mysqli_fetch_assoc($result);
+            $data = [
+                'status' => 200,
+                'message' => 'Lấy số lượng còn thành công',
+                'data' => [$row]
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        } else {
+            $data = [
+                'status' => 404,
+                'message' => 'Không tìm thấy dữ liệu với maCB và maVe này'
+            ];
+            header("HTTP/1.0 404 Not Found");
+            return json_encode($data);
+        }
+    } else {
+        $data = [
+            'status' => 500,
+            'message' => 'Lỗi máy chủ'
+        ];
+        header("HTTP/1.0 500 Internal Server Error");
+        return json_encode($data);
+    }
+}
+
 
 
 //----------------------------------------------chi tiết khách hàng---------------------------------------------------
