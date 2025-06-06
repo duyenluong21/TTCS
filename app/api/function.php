@@ -3958,7 +3958,7 @@ function getPay($payParams)
                     TIME(create_at) AS gioThanhToan,
                     tongThanhToan
                 FROM veDaDat
-                WHERE maKH = '$payId'
+                WHERE maKH = '$payId' AND trangThai = 1
                 ORDER BY create_at DESC";
 
     $query_run = mysqli_query($conn, $query);
@@ -4025,6 +4025,119 @@ function getMaVeFromHangVe($params)
             $data = [
                 'status' => 404,
                 'message' => 'Không tìm thấy mã vé cho hạng đã chọn'
+            ];
+            header("HTTP/1.0 404 Not Found");
+            return json_encode($data);
+        }
+    } else {
+        $data = [
+            'status' => 500,
+            'message' => 'Lỗi truy vấn CSDL'
+        ];
+        header("HTTP/1.0 500 Internal Server Error");
+        return json_encode($data);
+    }
+}
+
+function getFlightsNearest($noidi, $noiden) {
+    global $conn;
+    $flights = [];
+
+    $stmt = $conn->prepare("
+                SELECT * FROM thongtinchuyenbay
+                WHERE diaDiemDi = ? AND diaDiemDen = ? AND CONCAT(ngayDi, ' ', gioBay) > NOW()
+                ORDER BY ngayDi ASC, gioBay ASC
+                LIMIT 3
+    ");
+    $stmt->bind_param("ss", $noidi, $noiden);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+        $flights[] = $row;
+    }
+
+    $stmt->close();
+
+    if (empty($flights)) {
+        $stmt = $conn->prepare("
+            SELECT DATE(ngayDi) AS ngayGanNhat
+            FROM thongtinchuyenbay 
+            WHERE diaDiemDi = ? AND diaDiemDen = ? AND ngayDi > CURDATE()
+            GROUP BY DATE(ngayDi)
+            ORDER BY ngayGanNhat ASC
+            LIMIT 1
+        ");
+        $stmt->bind_param("ss", $noidi, $noiden);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($row = $result->fetch_assoc()) {
+            $ngayGanNhat = $row['ngayGanNhat'];
+            $stmt->close();
+
+            $stmt = $conn->prepare("
+                SELECT * FROM thongtinchuyenbay 
+                WHERE diaDiemDi = ? AND diaDiemDen = ? AND ngayDi = ?
+                ORDER BY gioBay ASC
+                LIMIT 3
+            ");
+            $stmt->bind_param("sss", $noidi, $noiden, $ngayGanNhat);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            while ($row = $result->fetch_assoc()) {
+                $flights[] = $row;
+            }
+        } else {
+            $stmt->close();
+        }
+    }
+
+    return $flights;
+}
+
+function getPendingTickets($params)
+{
+    global $conn;
+
+    if (!isset($params['maKH']) || empty($params['maKH'])) {
+        return json_encode([
+            'status' => 422,
+            'message' => 'Vui lòng nhập mã khách hàng'
+        ]);
+    }
+
+    $maKH = mysqli_real_escape_string($conn, $params['maKH']);
+    $sql = "
+                SELECT 
+                    v.*, 
+                    tcb.diaDiemDi, 
+                    tcb.diaDiemDen, 
+                    tcb.ngayDi,
+                    tcb.gioBay
+                FROM veDaDat v
+                JOIN thongtinchuyenbay tcb ON v.maCB = tcb.maCB
+                WHERE v.maKH = '$maKH' AND v.trangThai = 0
+                LIMIT 1
+            ";
+
+    $result = mysqli_query($conn, $sql);
+
+    if ($result) {
+        if (mysqli_num_rows($result) > 0) {
+            $row = mysqli_fetch_assoc($result);
+            $data = [
+                'status' => 200,
+                'message' => 'Lấy vé chưa thanh toán thành công',
+                'data' => $row
+            ];
+            header("HTTP/1.0 200 OK");
+            return json_encode($data);
+        } else {
+            $data = [
+                'status' => 404,
+                'message' => 'Không tìm thấy vé chưa thanh toán của khách hàng'
             ];
             header("HTTP/1.0 404 Not Found");
             return json_encode($data);

@@ -1,8 +1,9 @@
 <?php
 
 header('Content-Type: application/json');
+date_default_timezone_set('Asia/Ho_Chi_Minh');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if (php_sapi_name() !== 'cli' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method Not Allowed']);
     exit;
@@ -21,7 +22,7 @@ if ($mysqli->connect_error) {
 
 $threshold = date('Y-m-d H:i:s', strtotime('-5 minutes'));
 
-$sql = "SELECT maVeDaDat, maVe, soLuongDat
+$sql = "SELECT maVeDaDat, maVe, maCB, soLuongDat
         FROM veDaDat
         WHERE trangThai = 0
           AND create_at < ?";
@@ -39,6 +40,7 @@ if ($result->num_rows > 0) {
             $idVeDaDat   = (int)$row['maVeDaDat'];
             $maVe        = (int)$row['maVe'];
             $qtyDat      = (int)$row['soLuongDat'];
+            $maCB = (int)$row['maCB'];
 
             $upd = "
                 UPDATE soLuongVe
@@ -48,7 +50,7 @@ if ($result->num_rows > 0) {
                 LIMIT 1
             ";
             $uStmt = $mysqli->prepare($upd);
-            $uStmt->bind_param('ii', $qtyDat, $maVe);
+            $uStmt->bind_param('iii', $qtyDat, $maCB, $maVe);
             $uStmt->execute();
             $uStmt->close();
 

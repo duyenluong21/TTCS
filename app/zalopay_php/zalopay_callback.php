@@ -14,9 +14,7 @@ if ($conn->connect_error) {
 try {
   $key2 = "kLtgPl8HHhfvMuDHPwKfgfsY4Ydm9eIz";
   $postdata = file_get_contents('php://input');
-  file_put_contents("post_data.txt", $postdata);
   $postdatajson = json_decode($postdata, true);
-  file_put_contents("post_datajson.txt", $postdatajson["data"]);
   $mac = hash_hmac("sha256", $postdatajson["data"], $key2);
 
 
@@ -25,14 +23,17 @@ try {
     $result["return_code"] = -1;
     $result["return_message"] = "mac not equal";
   } else {
-    $datajson = json_decode($postdatajson["data"], true);
-    $app_trans_id = $datajson["app_trans_id"];
-    $stmt = $conn->prepare("UPDATE vedadat SET trangThai = 1 WHERE app_trans_id = ?");
-    $stmt->bind_param("s", $app_trans_id);
-    $stmt->execute();
+      $datajson = json_decode($postdatajson["data"], true);
+      $app_trans_id = $datajson["app_trans_id"];
+      $zp_trans_id = $datajson["zp_trans_id"];
+      file_put_contents("app_trans_id.txt", $app_trans_id);
 
-    $result["return_code"] = 1;
-    $result["return_message"] = "success";
+      $stmt = $conn->prepare("UPDATE vedadat SET trangThai = 1, zp_trans_id = ? WHERE app_trans_id = ?");
+      $stmt->bind_param("ss", $zp_trans_id, $app_trans_id);
+      $stmt->execute();
+
+      $result["return_code"] = 1;
+      $result["return_message"] = "success";
   }
 } catch (Exception $e) {
   $result["return_code"] = 0;

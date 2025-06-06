@@ -18,6 +18,94 @@ if (isset($request['originalDetectIntentRequest']['payload']['maKH'])) {
 } elseif (isset($_SESSION['maKH'])) {
     $maKH = $_SESSION['maKH'];
 }
+$intent = $request['queryResult']['intent']['displayName'];
+$text = $request['queryResult']['queryText'];
+$ngayKhoiHanh = extractDateFromText($text);
+
+if ($intent === 'timchuyenbaygannhat' || $intent === 'NhapNoiDi') {
+    handleTimChuyenBayGanNhat($request);
+    exit;
+}
+
+function handleTimChuyenBayGanNhat($request) {
+    $parameters = $request['queryResult']['parameters'];
+    $contexts = $request['queryResult']['outputContexts'] ?? [];
+    $noidi = $parameters['diadiemdi'] ?? null;
+    $noiden = $parameters['diadiemden'] ?? null;
+
+    if (!$noiden) {
+        foreach ($contexts as $context) {
+            if (strpos($context['name'], 'await_noidi') !== false) {
+                $noiden = $context['parameters']['diadiemden'] ?? null;
+            }
+        }
+    }
+
+    if (!$noiden) {
+        echo json_encode(["fulfillmentText" => "Bạn muốn bay đến đâu?"]);
+        return;
+    }
+
+    if (!$noidi) {
+        $outputContext = [
+            "name" => $request['session'] . "/contexts/await_noidi",
+            "lifespanCount" => 5,
+            "parameters" => [
+                "diadiemden" => $noiden
+            ]
+        ];
+
+        echo json_encode([
+            "fulfillmentText" => "Bạn muốn đi từ đâu đến $noiden?",
+            "outputContexts" => [$outputContext]
+        ]);
+        return;
+    }
+
+    processTimChuyenBayGanNhat($noidi, $noiden);
+}
+
+function processTimChuyenBayGanNhat($noidi, $noiden) {
+    $flights = getFlightsNearest($noidi, $noiden);
+
+    if (!empty($flights)) {
+        $ngayGanNhatFormatted = date('d/m/Y', strtotime($flights[0]['ngayDi']));
+
+        $responseText = "Các chuyến bay gần nhất từ $noidi đến $noiden:\n";
+        $responseText .= "- Chuyến bay gần nhất là vào ngày: $ngayGanNhatFormatted\n\n";
+
+        foreach ($flights as $flight) {
+            $gioBayFormatted = date('H:i', strtotime($flight['gioBay']));
+            $giaFormatted = number_format($flight['giaVe'], 0, ',', '.');
+            $maCB = urlencode($flight['maCB']);
+
+            $responseText .= "- Mã: {$flight['maCB']} | Giờ bay: $gioBayFormatted | Giá: {$giaFormatted} VND\n";
+            $responseText .= "  Đặt vé: Nhập 'Đặt vé $maCB'\n\n";
+        }
+    } else {
+        $responseText = "Hiện không có chuyến bay nào từ $noidi đến $noiden trong thời gian tới.";
+    }
+
+    echo json_encode(["fulfillmentText" => $responseText]);
+}
+
+function extractDateFromText($text) {
+    $text = strtolower($text);
+
+    if (strpos($text, 'ngày mai') !== false) {
+        return date('Y-m-d', strtotime('+1 day'));
+    } elseif (strpos($text, 'ngày kia') !== false) {
+        return date('Y-m-d', strtotime('+2 day'));
+    } elseif (preg_match('/ngày (\d{1,2}) tháng (\d{1,2})/u', $text, $matches)) {
+        $ngay = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+        $thang = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+        $nam = date('Y');
+        return "$nam-$thang-$ngay";
+    }
+
+    return null;
+}
+
 
 if (preg_match('/Đặt vé (\w+)/', $request['queryResult']['queryText'], $matches)) {
     $maCB = $matches[1];
